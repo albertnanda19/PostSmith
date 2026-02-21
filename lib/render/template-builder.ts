@@ -1,4 +1,5 @@
-import type { StructuredSlide } from "@/types/post"
+import type { PostBackgroundColor, StructuredSlide } from "@/types/post"
+import { POST_BACKGROUND_COLORS } from "@/types/post"
 
 function escapeHtml(input: string): string {
   return input
@@ -26,10 +27,6 @@ function slideToThemeSeed(slide: StructuredSlide): string {
   }
 }
 
-export function buildPostThemeSeed(slides: StructuredSlide[]): string {
-  return slides.map(slideToThemeSeed).join("\n")
-}
-
 function hashStringToInt(input: string): number {
   let hash = 0
   for (let i = 0; i < input.length; i += 1) {
@@ -39,18 +36,8 @@ function hashStringToInt(input: string): number {
 }
 
 function pickBackgroundColor(themeSeed: string): string {
-  const palette = [
-    "#0f172a",
-    "#111827",
-    "#0b1324",
-    "#0a1b2a",
-    "#111b2e",
-    "#0b1f1a",
-    "#1a1026",
-  ]
-
-  const idx = Math.abs(hashStringToInt(themeSeed)) % palette.length
-  return palette[idx] ?? "#0f172a"
+  const idx = Math.abs(hashStringToInt(themeSeed)) % POST_BACKGROUND_COLORS.length
+  return POST_BACKGROUND_COLORS[idx] ?? "#0f172a"
 }
 
 function escapeRegex(input: string): string {
@@ -193,7 +180,10 @@ function renderCtaSlide(text: string, variant: "default" | "minimal"): string {
       </div>`
 }
 
-export function buildSlideHtml(slide: StructuredSlide, themeSeed?: string): string {
+export function buildSlideHtml(
+  slide: StructuredSlide,
+  backgroundColor?: PostBackgroundColor
+): string {
   const body = (() => {
     switch (slide.type) {
       case "hero":
@@ -216,8 +206,8 @@ export function buildSlideHtml(slide: StructuredSlide, themeSeed?: string): stri
     }
   })()
 
-  const resolvedSeed = themeSeed ?? slideToThemeSeed(slide)
-  const backgroundColor = pickBackgroundColor(resolvedSeed)
+  const resolvedBackgroundColor =
+    backgroundColor ?? (pickBackgroundColor(slideToThemeSeed(slide)) as PostBackgroundColor)
 
   return `<!doctype html>
 <html lang="en">
@@ -226,7 +216,7 @@ export function buildSlideHtml(slide: StructuredSlide, themeSeed?: string): stri
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
       :root {
-        --bg: ${backgroundColor};
+        --bg: ${resolvedBackgroundColor};
       }
 
       * {

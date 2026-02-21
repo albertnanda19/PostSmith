@@ -2,13 +2,17 @@ import { NextResponse } from "next/server"
 import type { Readable } from "stream"
 
 import { renderSlidesToZipStream } from "@/lib/render/render-batch"
-import type { StructuredSlide } from "@/types/post"
+import type { PostBackgroundColor, StructuredSlide } from "@/types/post"
+import { POST_BACKGROUND_COLORS } from "@/types/post"
 import { ValidationError } from "@/lib/utils/validation"
 
 export const runtime = "nodejs"
 
 type RenderBatchRequestBody = {
   slides: StructuredSlide[]
+  theme: {
+    backgroundColor: PostBackgroundColor
+  }
 }
 
 async function nodeStreamToBuffer(nodeStream: Readable): Promise<Buffer> {
@@ -82,11 +86,18 @@ function isStructuredSlide(value: unknown): value is StructuredSlide {
   return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
 }
 
+function isPostBackgroundColor(value: unknown): value is PostBackgroundColor {
+  return typeof value === "string" && POST_BACKGROUND_COLORS.includes(value as PostBackgroundColor)
+}
+
 function isRenderBatchRequestBody(value: unknown): value is RenderBatchRequestBody {
   if (!isRecord(value)) return false
 
   const record = value
   if (!Array.isArray(record.slides)) return false
+
+  if (!isRecord(record.theme)) return false
+  if (!isPostBackgroundColor(record.theme.backgroundColor)) return false
 
   return record.slides.every(isStructuredSlide)
 }
@@ -103,7 +114,11 @@ export async function POST(req: Request) {
       throw new ValidationError("Slides are required")
     }
 
-    const nodeStream = renderSlidesToZipStream(bodyUnknown.slides, 2)
+    const nodeStream = renderSlidesToZipStream(
+      bodyUnknown.slides,
+      bodyUnknown.theme.backgroundColor,
+      2
+    )
     const zipBuffer = await nodeStreamToBuffer(nodeStream)
 
     return new NextResponse(new Uint8Array(zipBuffer), {

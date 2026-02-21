@@ -3,9 +3,8 @@ import type { Archiver } from "archiver"
 import type { Readable } from "stream"
 
 import { renderSlideToPng } from "@/lib/render/render-slide"
-import { buildPostThemeSeed } from "@/lib/render/template-builder"
 import { runWithConcurrencyLimit } from "@/lib/utils/promise-pool"
-import type { StructuredSlide } from "@/types/post"
+import type { PostBackgroundColor, StructuredSlide } from "@/types/post"
 
 type IndexedSlide = {
   index: number
@@ -23,13 +22,12 @@ function createZipArchive(): Archiver {
 
 export function renderSlidesToZipStream(
   slides: StructuredSlide[],
+  backgroundColor: PostBackgroundColor,
   concurrency = 2
 ): Readable {
   if (!slides.length) {
     throw new Error("Slides are required")
   }
-
-  const themeSeed = buildPostThemeSeed(slides)
 
   const archive = createZipArchive()
 
@@ -56,7 +54,7 @@ export function renderSlidesToZipStream(
     const indexed: IndexedSlide[] = slides.map((slide, index) => ({ index, slide }))
 
     await runWithConcurrencyLimit(indexed, concurrency, async ({ index, slide }) => {
-      const png = await renderSlideToPng(slide, themeSeed)
+      const png = await renderSlideToPng(slide, backgroundColor)
 
       queueAppend(index, png)
       return null

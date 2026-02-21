@@ -1,4 +1,5 @@
-import type { GenerationOptions, StructuredPostOutput, StructuredSlide } from "@/types/post"
+import type { GenerationOptions, PostTheme, StructuredPostOutput, StructuredSlide } from "@/types/post"
+import { POST_BACKGROUND_COLORS } from "@/types/post"
 import { generateGeminiText } from "@/lib/llm/gemini-client"
 import { buildCarouselPrompt } from "@/lib/llm/prompt-builder"
 
@@ -280,12 +281,30 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
   }
 
   const slidesValue = parsed.slides
+  const themeValue = parsed.theme
   const captionValue = parsed.caption
   const hashtagsValue = parsed.hashtags
 
   if (!Array.isArray(slidesValue)) {
     throw new GenerationError("Generated output is missing slides")
   }
+
+  if (!isRecord(themeValue)) {
+    throw new GenerationError("Generated output is missing theme")
+  }
+
+  const backgroundColorValue = themeValue.backgroundColor
+  if (typeof backgroundColorValue !== "string") {
+    throw new GenerationError("Theme backgroundColor is required")
+  }
+  ensureNoNewlines(backgroundColorValue, "Theme backgroundColor")
+  if (!POST_BACKGROUND_COLORS.includes(backgroundColorValue as (typeof POST_BACKGROUND_COLORS)[number])) {
+    throw new GenerationError(
+      `Theme backgroundColor must be one of: ${POST_BACKGROUND_COLORS.join(", ")}`
+    )
+  }
+
+  const theme: PostTheme = { backgroundColor: backgroundColorValue as PostTheme["backgroundColor"] }
 
   const slides = slidesValue
     .filter(isStructuredSlide)
@@ -376,6 +395,7 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
 
   return {
     slides,
+    theme,
     caption,
     hashtags: dedupedHashtags,
   }

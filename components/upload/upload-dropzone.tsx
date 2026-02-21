@@ -83,6 +83,9 @@ function isStructuredPostOutput(value: unknown): value is StructuredPostOutput {
     return false
   }
 
+  if (!isRecord(value.theme)) return false
+  if (typeof value.theme.backgroundColor !== "string") return false
+
   if (typeof value.caption !== "string") return false
   if (!Array.isArray(value.hashtags) || !value.hashtags.every((t) => typeof t === "string")) {
     return false

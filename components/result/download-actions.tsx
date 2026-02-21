@@ -3,19 +3,21 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { StructuredSlide } from "@/types/post"
+import type { PostTheme, StructuredSlide } from "@/types/post"
 
 type DownloadActionsProps = {
   slides: StructuredSlide[]
+  theme: PostTheme
   className?: string
 }
 
 type RenderBatchRequestBody = {
   slides: StructuredSlide[]
+  theme: PostTheme
 }
 
-function buildRenderBatchRequest(slides: StructuredSlide[]): RenderBatchRequestBody {
-  return { slides }
+function buildRenderBatchRequest(slides: StructuredSlide[], theme: PostTheme): RenderBatchRequestBody {
+  return { slides, theme }
 }
 
 async function downloadZipFromResponse(res: Response, filename: string): Promise<void> {
@@ -34,7 +36,7 @@ async function downloadZipFromResponse(res: Response, filename: string): Promise
   }
 }
 
-function DownloadActions({ slides, className }: DownloadActionsProps) {
+function DownloadActions({ slides, theme, className }: DownloadActionsProps) {
   const [isRendering, setIsRendering] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -44,7 +46,7 @@ function DownloadActions({ slides, className }: DownloadActionsProps) {
     setIsRendering(true)
 
     try {
-      const body = buildRenderBatchRequest(slides)
+      const body = buildRenderBatchRequest(slides, theme)
 
       const res = await fetch("/api/render/batch", {
         method: "POST",
