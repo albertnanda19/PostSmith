@@ -27,7 +27,7 @@ export default function Home() {
                 <SlideGrid slides={result.slides} />
                 <CaptionBox caption={result.caption} />
                 <HashtagList hashtags={result.hashtags} />
-                <DownloadActions />
+                <DownloadActions slides={result.slides} />
               </section>
             ) : null}
           </div>
