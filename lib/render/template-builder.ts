@@ -118,7 +118,7 @@ function renderCtaSlide(text: string): string {
         <div class="inner cta-inner">
           <div class="cta-main">${safeText}</div>
           <div class="cta-divider"></div>
-          <div class="cta-footer">Built with PostSmith</div>
+          <div class="cta-footer">Albert Mangiri</div>
         </div>
       </div>`
 }
@@ -202,6 +202,8 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         display: flex;
         flex-direction: column;
         gap: 24px;
+        margin-top: auto;
+        margin-bottom: auto;
       }
 
       .hero {
@@ -351,6 +353,8 @@ export function buildSlideHtml(slide: StructuredSlide): string {
       .cta-inner {
         max-width: 760px;
         height: 100%;
+        margin-top: 0;
+        margin-bottom: 0;
       }
 
       .cta-main {
