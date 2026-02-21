@@ -11,6 +11,38 @@ type RenderBatchRequestBody = {
   slides: StructuredSlide[]
 }
 
+async function nodeStreamToBuffer(nodeStream: Readable): Promise<Buffer> {
+  return await new Promise<Buffer>((resolve, reject) => {
+    const chunks: Buffer[] = []
+
+    const onData = (chunk: unknown) => {
+      if (Buffer.isBuffer(chunk)) {
+        chunks.push(chunk)
+        return
+      }
+
+      if (chunk instanceof Uint8Array) {
+        chunks.push(Buffer.from(chunk))
+        return
+      }
+
+      if (typeof chunk === "string") {
+        chunks.push(Buffer.from(chunk))
+        return
+      }
+
+      reject(new Error("Invalid stream chunk"))
+    }
+
+    const onEnd = () => resolve(Buffer.concat(chunks))
+    const onError = (err: unknown) => reject(err instanceof Error ? err : new Error("Stream error"))
+
+    nodeStream.on("data", onData)
+    nodeStream.once("end", onEnd)
+    nodeStream.once("error", onError)
+  })
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -59,46 +91,6 @@ function isRenderBatchRequestBody(value: unknown): value is RenderBatchRequestBo
   return record.slides.every(isStructuredSlide)
 }
 
-function nodeReadableToWebStream(nodeStream: Readable): ReadableStream<Uint8Array> {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      const onData = (chunk: unknown) => {
-        if (chunk instanceof Uint8Array) {
-          controller.enqueue(chunk)
-          return
-        }
-
-        if (typeof chunk === "string") {
-          controller.enqueue(new TextEncoder().encode(chunk))
-          return
-        }
-
-        controller.error(new Error("Invalid stream chunk"))
-      }
-
-      const onEnd = () => controller.close()
-      const onError = (err: unknown) => {
-        controller.error(err instanceof Error ? err : new Error("Stream error"))
-      }
-
-      nodeStream.on("data", onData)
-      nodeStream.on("end", onEnd)
-      nodeStream.on("error", onError)
-
-      nodeStream.once("close", () => {
-        nodeStream.off("data", onData)
-        nodeStream.off("end", onEnd)
-        nodeStream.off("error", onError)
-      })
-
-      nodeStream.resume()
-    },
-    cancel() {
-      nodeStream.destroy()
-    },
-  })
-}
-
 export async function POST(req: Request) {
   try {
     const bodyUnknown: unknown = await req.json()
@@ -112,9 +104,9 @@ export async function POST(req: Request) {
     }
 
     const nodeStream = renderSlidesToZipStream(bodyUnknown.slides, 2)
-    const webStream = nodeReadableToWebStream(nodeStream)
+    const zipBuffer = await nodeStreamToBuffer(nodeStream)
 
-    return new NextResponse(webStream, {
+    return new NextResponse(new Uint8Array(zipBuffer), {
       status: 200,
       headers: {
         "Content-Type": "application/zip",
@@ -125,6 +117,11 @@ export async function POST(req: Request) {
   } catch (err) {
     if (err instanceof ValidationError) {
       return NextResponse.json({ success: false, error: err.message }, { status: 400 })
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      const message = err instanceof Error ? err.message : "Failed to render slides"
+      return NextResponse.json({ success: false, error: message }, { status: 500 })
     }
 
     return NextResponse.json(
