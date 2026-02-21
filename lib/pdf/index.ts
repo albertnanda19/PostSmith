@@ -1,2 +1,2 @@
-export { cleanText } from "./clean-text"
-export { parsePdf } from "./parse-pdf"
+export { cleanExtractedText } from "./clean-text"
+export { parsePdfBuffer } from "./parse-pdf"
