@@ -1,6 +1,6 @@
 import type { GenerationOptions, PostOutput } from "@/types/post"
 
-import { createGeminiClient } from "@/lib/llm/gemini-client"
+import { generateGeminiText } from "@/lib/llm/gemini-client"
 import { buildCarouselPrompt } from "@/lib/llm/prompt-builder"
 
 class GenerationError extends Error {
@@ -109,13 +109,11 @@ export async function generateCarousel(
   options: GenerationOptions
 ): Promise<PostOutput> {
   const maxSlides = clampMaxSlides(options.maxSlides)
-  const model = createGeminiClient()
   const prompt = buildCarouselPrompt(inputText, { ...options, maxSlides })
 
   let raw: string
   try {
-    const result = await model.generateContent(prompt)
-    raw = result.response.text()
+    raw = await generateGeminiText(prompt)
   } catch (err) {
     if (process.env.NODE_ENV !== "production") {
       const message = err instanceof Error ? err.message : "Gemini generation failed"
