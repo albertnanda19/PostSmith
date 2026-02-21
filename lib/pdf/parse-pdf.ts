@@ -4,8 +4,21 @@ type PdfParseResult = {
 
 type PdfParseFn = (buffer: Buffer) => Promise<PdfParseResult>
 
+type PdfParseInstance = {
+  load: (buffer: Buffer) => Promise<void>
+  getText: () => Promise<string>
+  destroy?: () => void
+}
+
+type PdfParseClass = new (options: object) => PdfParseInstance
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
+}
+
+function isClassConstructor(value: unknown): value is new (...args: never[]) => unknown {
+  if (typeof value !== "function") return false
+  return /^class\s/.test(Function.prototype.toString.call(value))
 }
 
 function resolvePdfParse(mod: unknown): PdfParseFn {
@@ -15,6 +28,46 @@ function resolvePdfParse(mod: unknown): PdfParseFn {
 
   if (isRecord(mod) && typeof mod.default === "function") {
     return mod.default as PdfParseFn
+  }
+
+  if (isRecord(mod) && typeof mod.PDFParse === "function") {
+    if (isClassConstructor(mod.PDFParse)) {
+      const Parser = mod.PDFParse as PdfParseClass
+      return async (buffer: Buffer) => {
+        const instance = new Parser({})
+        try {
+          await instance.load(buffer)
+          const text = await instance.getText()
+          return { text }
+        } finally {
+          instance.destroy?.()
+        }
+      }
+    }
+
+    return mod.PDFParse as PdfParseFn
+  }
+
+  if (
+    isRecord(mod) &&
+    isRecord(mod.default) &&
+    typeof mod.default.PDFParse === "function"
+  ) {
+    if (isClassConstructor(mod.default.PDFParse)) {
+      const Parser = mod.default.PDFParse as PdfParseClass
+      return async (buffer: Buffer) => {
+        const instance = new Parser({})
+        try {
+          await instance.load(buffer)
+          const text = await instance.getText()
+          return { text }
+        } finally {
+          instance.destroy?.()
+        }
+      }
+    }
+
+    return mod.default.PDFParse as PdfParseFn
   }
 
   throw new Error("PDF parser is unavailable")

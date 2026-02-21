@@ -32,6 +32,11 @@ export async function POST(req: Request) {
       return NextResponse.json(response, { status: 400 })
     }
 
+    if (process.env.NODE_ENV !== "production") {
+      const response: ApiResponse<string> = { success: false, error: message }
+      return NextResponse.json(response, { status: 500 })
+    }
+
     const response: ApiResponse<string> = {
       success: false,
       error: "Failed to parse PDF",
