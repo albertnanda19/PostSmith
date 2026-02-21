@@ -116,7 +116,12 @@ export async function generateCarousel(
   try {
     const result = await model.generateContent(prompt)
     raw = result.response.text()
-  } catch {
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      const message = err instanceof Error ? err.message : "Gemini generation failed"
+      throw new GenerationError(message)
+    }
+
     throw new GenerationError("Gemini generation failed")
   }
 
