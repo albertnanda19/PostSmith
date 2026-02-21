@@ -1,88 +1,77 @@
-type PdfParseResult = {
-  text: string
-}
-
-type PdfParseFn = (buffer: Buffer) => Promise<PdfParseResult>
-
-type PdfParseInstance = {
-  load: (buffer: Buffer) => Promise<void>
-  getText: () => Promise<string>
-  destroy?: () => void
-}
-
-type PdfParseClass = new (options: object) => PdfParseInstance
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
-function isClassConstructor(value: unknown): value is new (...args: never[]) => unknown {
-  if (typeof value !== "function") return false
-  return /^class\s/.test(Function.prototype.toString.call(value))
+type PdfJsTextItem = {
+  str: string
 }
 
-function resolvePdfParse(mod: unknown): PdfParseFn {
-  if (typeof mod === "function") {
-    return mod as PdfParseFn
+type PdfJsPage = {
+  getTextContent: () => Promise<{ items: unknown[] }>
+}
+
+type PdfJsDocument = {
+  numPages: number
+  getPage: (pageNumber: number) => Promise<PdfJsPage>
+  destroy: () => Promise<void>
+}
+
+type PdfJsLoadingTask = {
+  promise: Promise<PdfJsDocument>
+}
+
+type PdfJsModule = {
+  getDocument: (src: { data: Uint8Array; disableWorker: boolean }) => PdfJsLoadingTask
+}
+
+function resolvePdfJs(mod: unknown): PdfJsModule {
+  if (!isRecord(mod) || typeof mod.getDocument !== "function") {
+    throw new Error("PDF parser is unavailable")
   }
 
-  if (isRecord(mod) && typeof mod.default === "function") {
-    return mod.default as PdfParseFn
+  return mod as unknown as PdfJsModule
+}
+
+function extractTextItems(items: unknown[]): string {
+  const parts: string[] = []
+
+  for (const item of items) {
+    if (!isRecord(item)) continue
+    const str = item.str
+    if (typeof str !== "string") continue
+    if (!str) continue
+    parts.push(str)
   }
 
-  if (isRecord(mod) && typeof mod.PDFParse === "function") {
-    if (isClassConstructor(mod.PDFParse)) {
-      const Parser = mod.PDFParse as PdfParseClass
-      return async (buffer: Buffer) => {
-        const instance = new Parser({ disableWorker: true })
-        try {
-          await instance.load(buffer)
-          const text = await instance.getText()
-          return { text }
-        } finally {
-          instance.destroy?.()
-        }
-      }
-    }
-
-    return mod.PDFParse as PdfParseFn
-  }
-
-  if (
-    isRecord(mod) &&
-    isRecord(mod.default) &&
-    typeof mod.default.PDFParse === "function"
-  ) {
-    if (isClassConstructor(mod.default.PDFParse)) {
-      const Parser = mod.default.PDFParse as PdfParseClass
-      return async (buffer: Buffer) => {
-        const instance = new Parser({ disableWorker: true })
-        try {
-          await instance.load(buffer)
-          const text = await instance.getText()
-          return { text }
-        } finally {
-          instance.destroy?.()
-        }
-      }
-    }
-
-    return mod.default.PDFParse as PdfParseFn
-  }
-
-  throw new Error("PDF parser is unavailable")
+  return parts.join(" ")
 }
 
 export async function parsePdfBuffer(buffer: Buffer): Promise<string> {
-  const mod: unknown = await import("pdf-parse")
-  const pdfParse = resolvePdfParse(mod)
+  const mod: unknown = await import("pdfjs-dist/legacy/build/pdf.mjs")
+  const pdfjs = resolvePdfJs(mod)
 
-  const result = await pdfParse(buffer)
-  const text = result.text.trim()
+  const data = new Uint8Array(buffer)
+  const task = pdfjs.getDocument({ data, disableWorker: true })
+  const doc = await task.promise
+  let combined = ""
+
+  try {
+    for (let i = 1; i <= doc.numPages; i += 1) {
+      const page = await doc.getPage(i)
+      const content = await page.getTextContent()
+      const pageText = extractTextItems(content.items).trim()
+      if (!pageText) continue
+      combined = combined ? `${combined}\n${pageText}` : pageText
+    }
+  } finally {
+    await doc.destroy()
+  }
+
+  const text = combined.trim()
 
   if (!text) {
     throw new Error("No text could be extracted from the PDF")
   }
 
-  return result.text
+  return combined
 }
