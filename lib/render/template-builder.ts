@@ -26,6 +26,10 @@ function slideToThemeSeed(slide: StructuredSlide): string {
   }
 }
 
+export function buildPostThemeSeed(slides: StructuredSlide[]): string {
+  return slides.map(slideToThemeSeed).join("\n")
+}
+
 function hashStringToInt(input: string): number {
   let hash = 0
   for (let i = 0; i < input.length; i += 1) {
@@ -34,7 +38,7 @@ function hashStringToInt(input: string): number {
   return hash
 }
 
-function pickBackgroundColor(slide: StructuredSlide): string {
+function pickBackgroundColor(themeSeed: string): string {
   const palette = [
     "#0f172a",
     "#111827",
@@ -45,8 +49,7 @@ function pickBackgroundColor(slide: StructuredSlide): string {
     "#1a1026",
   ]
 
-  const seed = slideToThemeSeed(slide)
-  const idx = Math.abs(hashStringToInt(seed)) % palette.length
+  const idx = Math.abs(hashStringToInt(themeSeed)) % palette.length
   return palette[idx] ?? "#0f172a"
 }
 
@@ -190,7 +193,7 @@ function renderCtaSlide(text: string, variant: "default" | "minimal"): string {
       </div>`
 }
 
-export function buildSlideHtml(slide: StructuredSlide): string {
+export function buildSlideHtml(slide: StructuredSlide, themeSeed?: string): string {
   const body = (() => {
     switch (slide.type) {
       case "hero":
@@ -213,7 +216,8 @@ export function buildSlideHtml(slide: StructuredSlide): string {
     }
   })()
 
-  const backgroundColor = pickBackgroundColor(slide)
+  const resolvedSeed = themeSeed ?? slideToThemeSeed(slide)
+  const backgroundColor = pickBackgroundColor(resolvedSeed)
 
   return `<!doctype html>
 <html lang="en">

@@ -30,7 +30,8 @@ async function closePageSafely(page: Page): Promise<void> {
 }
 
 export async function renderSlideToPng(
-  slide: StructuredSlide
+  slide: StructuredSlide,
+  themeSeed?: string
 ): Promise<Buffer> {
   const browser = await getBrowser()
   const page = await browser.newPage()
@@ -39,7 +40,7 @@ export async function renderSlideToPng(
     await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 })
 
     const html = injectBaseHref(
-      buildSlideHtml(slide),
+      buildSlideHtml(slide, themeSeed),
       buildPublicBaseHref()
     )
 
