@@ -54,11 +54,15 @@ export async function renderSlideToPng(
       fullPage: false,
     })
 
-    if (!Buffer.isBuffer(buffer)) {
-      throw new Error("Failed to render PNG")
+    if (Buffer.isBuffer(buffer)) {
+      return buffer
     }
 
-    return buffer
+    if (buffer instanceof Uint8Array) {
+      return Buffer.from(buffer)
+    }
+
+    throw new Error("Failed to render PNG")
   } finally {
     await closePageSafely(page)
   }
