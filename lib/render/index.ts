@@ -1,3 +1,3 @@
-export { buildTemplate } from "./template-builder"
-export { renderSlide } from "./render-slide"
-export { createBrowser } from "./browser"
+export { buildSlideHtml } from "./template-builder"
+export { renderSlideToPng } from "./render-slide"
+export { getBrowser } from "./browser"

@@ -32,3 +32,21 @@ export function validateGenerationText(text: string): void {
     throw new ValidationError("Text must be at least 100 characters")
   }
 }
+
+export function validateRenderSlideInput(
+  headline: string,
+  content: string,
+  slideIndex: number
+): void {
+  if (!headline || !headline.trim()) {
+    throw new ValidationError("Headline is required")
+  }
+
+  if (!content || !content.trim()) {
+    throw new ValidationError("Content is required")
+  }
+
+  if (!Number.isFinite(slideIndex) || Math.trunc(slideIndex) < 1) {
+    throw new ValidationError("slideIndex must be at least 1")
+  }
+}
