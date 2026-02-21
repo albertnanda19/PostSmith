@@ -78,13 +78,35 @@ function isExplanationSlide(value: unknown): value is StructuredSlide {
   )
 }
 
+function isParagraphSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "paragraph" && isNonEmptyString(value.title) && isNonEmptyString(value.text)
+}
+
+function isDiagramSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return (
+    value.type === "diagram" &&
+    isNonEmptyString(value.title) &&
+    Array.isArray(value.nodes) &&
+    value.nodes.every(isNonEmptyString)
+  )
+}
+
 function isCtaSlide(value: unknown): value is StructuredSlide {
   if (!isRecord(value)) return false
   return value.type === "cta" && isNonEmptyString(value.text)
 }
 
 function isStructuredSlide(value: unknown): value is StructuredSlide {
-  return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
+  return (
+    isHeroSlide(value) ||
+    isFlowSlide(value) ||
+    isExplanationSlide(value) ||
+    isParagraphSlide(value) ||
+    isDiagramSlide(value) ||
+    isCtaSlide(value)
+  )
 }
 
 function isPostBackgroundColor(value: unknown): value is PostBackgroundColor {
