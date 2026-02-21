@@ -6,6 +6,29 @@ class GenerationError extends Error {
   override name = "GenerationError"
 }
 
+function countWords(text: string): number {
+  const parts = text
+    .trim()
+    .split(/\s+/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0)
+  return parts.length
+}
+
+function countNonEmptyLines(text: string): number {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0).length
+}
+
+function countCaptionParagraphs(caption: string): number {
+  return caption
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter((p) => p.length > 0).length
+}
+
 function clampMaxSlides(maxSlides: number): number {
   const safe = Number.isFinite(maxSlides) ? Math.trunc(maxSlides) : 10
   if (safe <= 0) return 1
@@ -96,6 +119,51 @@ function validateStructuredSlides(slides: StructuredSlide[], maxSlides: number):
   if (slides[slides.length - 1]?.type !== "cta") {
     throw new GenerationError("Last slide must be cta")
   }
+
+  for (const slide of slides) {
+    if (slide.type === "hero") {
+      if (countWords(slide.title) > 8) {
+        throw new GenerationError("Hero title must be 8 words or fewer")
+      }
+      if (countWords(slide.subtitle) > 12) {
+        throw new GenerationError("Hero subtitle must be 12 words or fewer")
+      }
+    }
+
+    if (slide.type === "flow") {
+      if (slide.steps.length < 3 || slide.steps.length > 4) {
+        throw new GenerationError("Flow slides must have 3 to 4 steps")
+      }
+
+      for (const step of slide.steps) {
+        if (countWords(step) > 6) {
+          throw new GenerationError("Flow steps must be 6 words or fewer")
+        }
+
+        if (/[.!?]/.test(step)) {
+          throw new GenerationError("Flow steps must not be full sentences")
+        }
+      }
+    }
+
+    if (slide.type === "explanation") {
+      if (slide.points.length < 2 || slide.points.length > 3) {
+        throw new GenerationError("Explanation slides must have 2 to 3 points")
+      }
+
+      for (const point of slide.points) {
+        if (countWords(point) > 14) {
+          throw new GenerationError("Explanation points must be 14 words or fewer")
+        }
+      }
+    }
+
+    if (slide.type === "cta") {
+      if (countNonEmptyLines(slide.text) > 2) {
+        throw new GenerationError("CTA must be 2 lines or fewer")
+      }
+    }
+  }
 }
 
 function normalizeHashtag(tag: string): string {
@@ -170,7 +238,14 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
     throw new GenerationError("Generated output is missing caption")
   }
 
-  const dedupedHashtags = dedupeHashtags(hashtagsValue).slice(0, 15)
+  if (countCaptionParagraphs(caption) > 6) {
+    throw new GenerationError("Caption must be 6 paragraphs or fewer")
+  }
+
+  const dedupedHashtags = dedupeHashtags(hashtagsValue).slice(0, 8)
+  if (dedupedHashtags.length < 5 || dedupedHashtags.length > 8) {
+    throw new GenerationError("Hashtags must be 5 to 8 items")
+  }
   validateHashtags(dedupedHashtags)
   validateStructuredSlides(slides, maxSlides)
 
