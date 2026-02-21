@@ -11,12 +11,18 @@ function isRetryableGenerationError(err: unknown): boolean {
   if (!(err instanceof GenerationError)) return false
   const retryable = new Set<string>([
     "Model returned invalid JSON",
-    "Generated output has invalid slide types",
     "Generated output is missing slides",
+    "Generated output is missing theme",
+    "Theme backgroundColor is required",
     "Generated output is missing caption",
     "Generated output is missing hashtags",
   ])
-  return retryable.has(err.message)
+  if (retryable.has(err.message)) return true
+
+  return (
+    err.message.startsWith("Slide ") ||
+    err.message.startsWith("Theme backgroundColor must be one of:")
+  )
 }
 
 function countWords(text: string): number {
@@ -188,6 +194,85 @@ function isStructuredSlide(value: unknown): value is StructuredSlide {
   return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
 }
 
+function parseStructuredSlideAtIndex(value: unknown, index: number): StructuredSlide {
+  const label = `Slide ${index + 1}`
+
+  if (!isRecord(value)) {
+    throw new GenerationError(`${label} must be an object`)
+  }
+
+  const typeValue = value.type
+  if (typeof typeValue !== "string") {
+    throw new GenerationError(`${label} type is required`)
+  }
+
+  if (typeValue === "hero") {
+    if (!isNonEmptyString(value.title)) {
+      throw new GenerationError(`${label} hero.title is required`)
+    }
+    if (!isNonEmptyString(value.subtitle)) {
+      throw new GenerationError(`${label} hero.subtitle is required`)
+    }
+
+    const variant = normalizeVariant(value.variant, "Hero variant", ["default", "center"], "default")
+    return {
+      type: "hero" as const,
+      variant: variant as "default" | "center",
+      title: normalizeText(value.title, "Hero title"),
+      subtitle: normalizeText(value.subtitle, "Hero subtitle"),
+    }
+  }
+
+  if (typeValue === "flow") {
+    if (!Array.isArray(value.steps) || !value.steps.every(isNonEmptyString)) {
+      throw new GenerationError(`${label} flow.steps must be an array of strings`)
+    }
+    const variant = normalizeVariant(value.variant, "Flow variant", ["default", "grid"], "default")
+    const steps = value.steps.map((s) => normalizeText(s, "Flow step"))
+    return { type: "flow" as const, variant: variant as "default" | "grid", steps }
+  }
+
+  if (typeValue === "explanation") {
+    if (!isNonEmptyString(value.title)) {
+      throw new GenerationError(`${label} explanation.title is required`)
+    }
+    if (!Array.isArray(value.points) || !value.points.every(isNonEmptyString)) {
+      throw new GenerationError(`${label} explanation.points must be an array of strings`)
+    }
+    if (!Array.isArray(value.highlight) || !value.highlight.every(isNonEmptyString)) {
+      throw new GenerationError(`${label} explanation.highlight must be an array of strings`)
+    }
+
+    const variant = normalizeVariant(value.variant, "Explanation variant", ["default", "cards"], "default")
+    const title = normalizeText(value.title, "Explanation title")
+    const points = value.points.map((p) => normalizeText(p, "Explanation point"))
+    const highlight = value.highlight.map((h) => normalizeText(h, "Explanation highlight"))
+
+    return normalizeExplanationHighlights({
+      type: "explanation" as const,
+      variant: variant as "default" | "cards",
+      title,
+      points,
+      highlight,
+    })
+  }
+
+  if (typeValue === "cta") {
+    if (!isNonEmptyString(value.text)) {
+      throw new GenerationError(`${label} cta.text is required`)
+    }
+
+    const variant = normalizeVariant(value.variant, "CTA variant", ["default", "minimal"], "default")
+    return {
+      type: "cta" as const,
+      variant: variant as "default" | "minimal",
+      text: normalizeText(value.text, "CTA text"),
+    }
+  }
+
+  throw new GenerationError(`${label} type must be one of: hero, flow, explanation, cta`)
+}
+
 function normalizeExplanationHighlights(
   slide: Extract<StructuredSlide, { type: "explanation" }>
 ): Extract<StructuredSlide, { type: "explanation" }> {
@@ -306,71 +391,7 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
 
   const theme: PostTheme = { backgroundColor: backgroundColorValue as PostTheme["backgroundColor"] }
 
-  const slides = slidesValue
-    .filter(isStructuredSlide)
-    .map<StructuredSlide>((slide) => {
-      if (slide.type === "hero") {
-        const variant = normalizeVariant(
-          (slide as Record<string, unknown>).variant,
-          "Hero variant",
-          ["default", "center"],
-          "default"
-        )
-        return {
-          type: "hero" as const,
-          variant: variant as "default" | "center",
-          title: normalizeText(slide.title, "Hero title"),
-          subtitle: normalizeText(slide.subtitle, "Hero subtitle"),
-        }
-      }
-
-      if (slide.type === "flow") {
-        const variant = normalizeVariant(
-          (slide as Record<string, unknown>).variant,
-          "Flow variant",
-          ["default", "grid"],
-          "default"
-        )
-        const steps = slide.steps.map((s) => normalizeText(s, "Flow step"))
-        return { type: "flow" as const, variant: variant as "default" | "grid", steps }
-      }
-
-      if (slide.type === "explanation") {
-        const variant = normalizeVariant(
-          (slide as Record<string, unknown>).variant,
-          "Explanation variant",
-          ["default", "cards"],
-          "default"
-        )
-        const title = normalizeText(slide.title, "Explanation title")
-        const points = slide.points.map((p) => normalizeText(p, "Explanation point"))
-        const highlight = slide.highlight.map((h) => normalizeText(h, "Explanation highlight"))
-
-        return normalizeExplanationHighlights({
-          type: "explanation" as const,
-          variant: variant as "default" | "cards",
-          title,
-          points,
-          highlight,
-        })
-      }
-
-      const variant = normalizeVariant(
-        (slide as Record<string, unknown>).variant,
-        "CTA variant",
-        ["default", "minimal"],
-        "default"
-      )
-
-      return {
-        type: "cta" as const,
-        variant: variant as "default" | "minimal",
-        text: normalizeText(slide.text, "CTA text"),
-      }
-    })
-  if (slides.length !== slidesValue.length) {
-    throw new GenerationError("Generated output has invalid slide types")
-  }
+  const slides = slidesValue.map((slide, index) => parseStructuredSlideAtIndex(slide, index))
 
   if (typeof captionValue !== "string") {
     throw new GenerationError("Generated output is missing caption")

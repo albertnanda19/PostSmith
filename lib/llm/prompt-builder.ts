@@ -38,6 +38,8 @@ export function buildCarouselPrompt(
     "- Do not output any other type values.",
     "- Output a 'theme' object with a 'backgroundColor' value chosen ONLY from the allowed palette.",
     "- The same theme must apply to all slides in this post.",
+    "- Choose theme.backgroundColor deterministically from the input text so different inputs produce different colors.",
+    "- Deterministic rule: compute an index by counting the number of characters in the input text modulo 7, then pick the palette item in that position (0-based).",
     "- Every slide may include an optional 'variant' field.",
     "- hero slide must have only: type, variant, title, subtitle.",
     "- flow slide must have only: type, variant, steps.",
