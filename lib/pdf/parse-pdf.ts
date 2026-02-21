@@ -50,6 +50,10 @@ export async function parsePdfBuffer(buffer: Buffer): Promise<string> {
   const mod: unknown = await import("pdfjs-dist/legacy/build/pdf.mjs")
   const pdfjs = resolvePdfJs(mod)
 
+  if (isRecord(mod) && isRecord(mod.GlobalWorkerOptions)) {
+    mod.GlobalWorkerOptions.workerSrc = "pdfjs-dist/legacy/build/pdf.worker.mjs"
+  }
+
   const data = new Uint8Array(buffer)
   const task = pdfjs.getDocument({ data, disableWorker: true })
   const doc = await task.promise
