@@ -4,7 +4,7 @@ import * as React from "react"
 import { Loader2 } from "lucide-react"
 
 import type { ApiResponse } from "@/types/api"
-import type { PostOutput, Slide } from "@/types/post"
+import type { StructuredPostOutput, StructuredSlide } from "@/types/post"
 import { cn } from "@/lib/utils"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input"
 
 type UploadDropzoneProps = {
   className?: string
-  onGenerated: (result: PostOutput) => void
+  onGenerated: (result: StructuredPostOutput) => void
 }
 
 async function parseApiResponse<T>(res: Response): Promise<ApiResponse<T>> {
@@ -41,19 +41,45 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
 
-function isSlide(value: unknown): value is Slide {
+function isHeroSlide(value: unknown): value is StructuredSlide {
   if (!isRecord(value)) return false
   return (
-    typeof value.headline === "string" &&
-    typeof value.content === "string" &&
-    typeof value.visualHint === "string"
+    value.type === "hero" &&
+    typeof value.title === "string" &&
+    typeof value.subtitle === "string"
   )
 }
 
-function isPostOutput(value: unknown): value is PostOutput {
+function isFlowSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "flow" && Array.isArray(value.steps) && value.steps.every((s) => typeof s === "string")
+}
+
+function isExplanationSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return (
+    value.type === "explanation" &&
+    typeof value.title === "string" &&
+    Array.isArray(value.points) &&
+    value.points.every((p) => typeof p === "string") &&
+    Array.isArray(value.highlight) &&
+    value.highlight.every((h) => typeof h === "string")
+  )
+}
+
+function isCtaSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "cta" && typeof value.text === "string"
+}
+
+function isStructuredSlide(value: unknown): value is StructuredSlide {
+  return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
+}
+
+function isStructuredPostOutput(value: unknown): value is StructuredPostOutput {
   if (!isRecord(value)) return false
 
-  if (!Array.isArray(value.slides) || !value.slides.every(isSlide)) {
+  if (!Array.isArray(value.slides) || !value.slides.every(isStructuredSlide)) {
     return false
   }
 
@@ -111,12 +137,12 @@ function UploadDropzone({ className, onGenerated }: UploadDropzoneProps) {
         body: JSON.stringify({ text: parsed.data }),
       })
 
-      const generated = await parseApiResponse<PostOutput>(generateRes)
+      const generated = await parseApiResponse<StructuredPostOutput>(generateRes)
       if (!generated.success) {
         throw new Error(generated.error)
       }
 
-      if (!isPostOutput(generated.data)) {
+      if (!isStructuredPostOutput(generated.data)) {
         throw new Error("Invalid server response")
       }
 

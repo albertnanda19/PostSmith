@@ -1,6 +1,4 @@
-import type { GenerationOptions, PostOutput, StructuredPostOutput, StructuredSlide } from "@/types/post"
-
-import { adaptStructuredToLegacy } from "@/lib/adapters/structured-to-legacy"
+import type { GenerationOptions, StructuredPostOutput, StructuredSlide } from "@/types/post"
 import { generateGeminiText } from "@/lib/llm/gemini-client"
 import { buildCarouselPrompt } from "@/lib/llm/prompt-builder"
 
@@ -185,7 +183,7 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
 export async function generateCarousel(
   inputText: string,
   options: GenerationOptions
-): Promise<PostOutput> {
+): Promise<StructuredPostOutput> {
   const maxSlides = clampMaxSlides(options.maxSlides)
   const prompt = buildCarouselPrompt(inputText, { ...options, maxSlides })
 
@@ -202,6 +200,5 @@ export async function generateCarousel(
   }
 
   const jsonText = extractJsonObject(raw)
-  const structured = parseStructuredPostOutput(jsonText, maxSlides)
-  return adaptStructuredToLegacy(structured)
+  return parseStructuredPostOutput(jsonText, maxSlides)
 }

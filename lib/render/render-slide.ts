@@ -5,6 +5,7 @@ import type { Page } from "puppeteer"
 
 import { getBrowser } from "@/lib/render/browser"
 import { buildSlideHtml } from "@/lib/render/template-builder"
+import type { StructuredSlide } from "@/types/post"
 
 function buildPublicBaseHref(): string {
   const publicDir = path.join(process.cwd(), "public")
@@ -29,9 +30,7 @@ async function closePageSafely(page: Page): Promise<void> {
 }
 
 export async function renderSlideToPng(
-  headline: string,
-  content: string,
-  slideIndex: number
+  slide: StructuredSlide
 ): Promise<Buffer> {
   const browser = await getBrowser()
   const page = await browser.newPage()
@@ -40,7 +39,7 @@ export async function renderSlideToPng(
     await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 })
 
     const html = injectBaseHref(
-      buildSlideHtml(headline, content, slideIndex),
+      buildSlideHtml(slide),
       buildPublicBaseHref()
     )
 

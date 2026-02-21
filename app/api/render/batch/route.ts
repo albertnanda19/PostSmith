@@ -2,38 +2,61 @@ import { NextResponse } from "next/server"
 import type { Readable } from "stream"
 
 import { renderSlidesToZipStream } from "@/lib/render/render-batch"
-import { validateRenderSlideInput, ValidationError } from "@/lib/utils/validation"
+import type { StructuredSlide } from "@/types/post"
+import { ValidationError } from "@/lib/utils/validation"
 
 export const runtime = "nodejs"
 
-type SlideInput = {
-  headline: string
-  content: string
-  slideIndex: number
-}
-
 type RenderBatchRequestBody = {
-  slides: SlideInput[]
+  slides: StructuredSlide[]
 }
 
-function isSlideInput(value: unknown): value is SlideInput {
-  if (typeof value !== "object" || value === null) return false
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
 
-  const record = value as Record<string, unknown>
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0
+}
+
+function isHeroSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "hero" && isNonEmptyString(value.title) && isNonEmptyString(value.subtitle)
+}
+
+function isFlowSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "flow" && Array.isArray(value.steps) && value.steps.every(isNonEmptyString)
+}
+
+function isExplanationSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
   return (
-    typeof record.headline === "string" &&
-    typeof record.content === "string" &&
-    typeof record.slideIndex === "number"
+    value.type === "explanation" &&
+    isNonEmptyString(value.title) &&
+    Array.isArray(value.points) &&
+    value.points.every(isNonEmptyString) &&
+    Array.isArray(value.highlight) &&
+    value.highlight.every(isNonEmptyString)
   )
 }
 
-function isRenderBatchRequestBody(value: unknown): value is RenderBatchRequestBody {
-  if (typeof value !== "object" || value === null) return false
+function isCtaSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "cta" && isNonEmptyString(value.text)
+}
 
-  const record = value as Record<string, unknown>
+function isStructuredSlide(value: unknown): value is StructuredSlide {
+  return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
+}
+
+function isRenderBatchRequestBody(value: unknown): value is RenderBatchRequestBody {
+  if (!isRecord(value)) return false
+
+  const record = value
   if (!Array.isArray(record.slides)) return false
 
-  return record.slides.every(isSlideInput)
+  return record.slides.every(isStructuredSlide)
 }
 
 function nodeReadableToWebStream(nodeStream: Readable): ReadableStream<Uint8Array> {
@@ -86,10 +109,6 @@ export async function POST(req: Request) {
 
     if (bodyUnknown.slides.length === 0) {
       throw new ValidationError("Slides are required")
-    }
-
-    for (const slide of bodyUnknown.slides) {
-      validateRenderSlideInput(slide.headline, slide.content, slide.slideIndex)
     }
 
     const nodeStream = renderSlidesToZipStream(bodyUnknown.slides, 2)

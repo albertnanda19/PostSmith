@@ -1,46 +1,59 @@
 import { NextResponse } from "next/server"
 
 import { renderSlideToPng } from "@/lib/render/render-slide"
-import { validateRenderSlideInput, ValidationError } from "@/lib/utils/validation"
+import type { StructuredSlide } from "@/types/post"
+import { ValidationError } from "@/lib/utils/validation"
 
 export const runtime = "nodejs"
 
-type RenderRequestBody = {
-  headline: string
-  content: string
-  slideIndex: number
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
 }
 
-function isRenderRequestBody(value: unknown): value is RenderRequestBody {
-  if (typeof value !== "object" || value === null) return false
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0
+}
 
-  const record = value as Record<string, unknown>
+function isHeroSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "hero" && isNonEmptyString(value.title) && isNonEmptyString(value.subtitle)
+}
+
+function isFlowSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "flow" && Array.isArray(value.steps) && value.steps.every(isNonEmptyString)
+}
+
+function isExplanationSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
   return (
-    typeof record.headline === "string" &&
-    typeof record.content === "string" &&
-    typeof record.slideIndex === "number"
+    value.type === "explanation" &&
+    isNonEmptyString(value.title) &&
+    Array.isArray(value.points) &&
+    value.points.every(isNonEmptyString) &&
+    Array.isArray(value.highlight) &&
+    value.highlight.every(isNonEmptyString)
   )
+}
+
+function isCtaSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "cta" && isNonEmptyString(value.text)
+}
+
+function isStructuredSlide(value: unknown): value is StructuredSlide {
+  return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
 }
 
 export async function POST(req: Request) {
   try {
     const bodyUnknown: unknown = await req.json()
 
-    if (!isRenderRequestBody(bodyUnknown)) {
+    if (!isStructuredSlide(bodyUnknown)) {
       throw new ValidationError("Invalid request body")
     }
 
-    validateRenderSlideInput(
-      bodyUnknown.headline,
-      bodyUnknown.content,
-      bodyUnknown.slideIndex
-    )
-
-    const png = await renderSlideToPng(
-      bodyUnknown.headline,
-      bodyUnknown.content,
-      bodyUnknown.slideIndex
-    )
+    const png = await renderSlideToPng(bodyUnknown)
 
     return new NextResponse(new Uint8Array(png), {
       status: 200,

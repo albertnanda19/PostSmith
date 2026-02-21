@@ -4,21 +4,15 @@ import type { Readable } from "stream"
 
 import { renderSlideToPng } from "@/lib/render/render-slide"
 import { runWithConcurrencyLimit } from "@/lib/utils/promise-pool"
-import { validateRenderSlideInput } from "@/lib/utils/validation"
-
-export type RenderBatchSlideInput = {
-  headline: string
-  content: string
-  slideIndex: number
-}
+import type { StructuredSlide } from "@/types/post"
 
 type IndexedSlide = {
   index: number
-  slide: RenderBatchSlideInput
+  slide: StructuredSlide
 }
 
-function formatSlideFilename(slideIndex: number): string {
-  const padded = String(Math.trunc(slideIndex)).padStart(2, "0")
+function formatSlideFilename(index: number): string {
+  const padded = String(index + 1).padStart(2, "0")
   return `slide-${padded}.png`
 }
 
@@ -27,7 +21,7 @@ function createZipArchive(): Archiver {
 }
 
 export function renderSlidesToZipStream(
-  slides: RenderBatchSlideInput[],
+  slides: StructuredSlide[],
   concurrency = 2
 ): Readable {
   if (!slides.length) {
@@ -49,7 +43,7 @@ export function renderSlidesToZipStream(
         if (!buf) break
         buffered.delete(nextToAppend)
         const slide = slides[nextToAppend]
-        archive.append(buf, { name: formatSlideFilename(slide.slideIndex) })
+        archive.append(buf, { name: formatSlideFilename(nextToAppend) })
         nextToAppend += 1
       }
     })
@@ -59,13 +53,7 @@ export function renderSlidesToZipStream(
     const indexed: IndexedSlide[] = slides.map((slide, index) => ({ index, slide }))
 
     await runWithConcurrencyLimit(indexed, concurrency, async ({ index, slide }) => {
-      validateRenderSlideInput(slide.headline, slide.content, slide.slideIndex)
-
-      const png = await renderSlideToPng(
-        slide.headline,
-        slide.content,
-        slide.slideIndex
-      )
+      const png = await renderSlideToPng(slide)
 
       queueAppend(index, png)
       return null

@@ -3,31 +3,19 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { Slide } from "@/types/post"
+import type { StructuredSlide } from "@/types/post"
 
 type DownloadActionsProps = {
-  slides: Slide[]
+  slides: StructuredSlide[]
   className?: string
 }
 
-type RenderBatchSlideInput = {
-  headline: string
-  content: string
-  slideIndex: number
-}
-
 type RenderBatchRequestBody = {
-  slides: RenderBatchSlideInput[]
+  slides: StructuredSlide[]
 }
 
-function buildRenderBatchRequest(slides: Slide[]): RenderBatchRequestBody {
-  return {
-    slides: slides.map((slide, index) => ({
-      headline: slide.headline,
-      content: slide.content,
-      slideIndex: index + 1,
-    })),
-  }
+function buildRenderBatchRequest(slides: StructuredSlide[]): RenderBatchRequestBody {
+  return { slides }
 }
 
 async function downloadZipFromResponse(res: Response, filename: string): Promise<void> {

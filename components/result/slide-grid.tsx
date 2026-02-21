@@ -1,12 +1,46 @@
 import * as React from "react"
 
-import type { Slide } from "@/types/post"
+import type { StructuredSlide } from "@/types/post"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type SlideGridProps = {
-  slides: Slide[]
+  slides: StructuredSlide[]
   className?: string
+}
+
+function getSlideTitle(slide: StructuredSlide): string {
+  switch (slide.type) {
+    case "hero":
+      return slide.title
+    case "flow":
+      return "Architecture Flow"
+    case "explanation":
+      return slide.title
+    case "cta":
+      return "CTA"
+    default: {
+      const unreachable: never = slide
+      return String(unreachable)
+    }
+  }
+}
+
+function getSlideBody(slide: StructuredSlide): string {
+  switch (slide.type) {
+    case "hero":
+      return slide.subtitle
+    case "flow":
+      return slide.steps.join("\n")
+    case "explanation":
+      return slide.points.join("\n")
+    case "cta":
+      return slide.text
+    default: {
+      const unreachable: never = slide
+      return String(unreachable)
+    }
+  }
 }
 
 function SlideGrid({ slides, className }: SlideGridProps) {
@@ -16,11 +50,11 @@ function SlideGrid({ slides, className }: SlideGridProps) {
         <Card key={idx}>
           <CardHeader className="space-y-1">
             <div className="text-sm text-neutral-600">Slide {idx + 1}</div>
-            <CardTitle className="text-base">{slide.headline}</CardTitle>
+            <CardTitle className="text-base">{getSlideTitle(slide)}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-sm leading-6 text-neutral-900">
-              {slide.content}
+              {getSlideBody(slide)}
             </div>
           </CardContent>
         </Card>

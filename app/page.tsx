@@ -9,10 +9,10 @@ import { SlideGrid } from "@/components/result/slide-grid"
 import { CaptionBox } from "@/components/result/caption-box"
 import { HashtagList } from "@/components/result/hashtag-list"
 import { DownloadActions } from "@/components/result/download-actions"
-import type { PostOutput } from "@/types/post"
+import type { StructuredPostOutput } from "@/types/post"
 
 export default function Home() {
-  const [result, setResult] = React.useState<PostOutput | null>(null)
+  const [result, setResult] = React.useState<StructuredPostOutput | null>(null)
 
   return (
     <div className="min-h-dvh">

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 
 import type { ApiResponse } from "@/types/api"
-import type { PostOutput } from "@/types/post"
+import type { StructuredPostOutput } from "@/types/post"
 import { generateCarousel } from "@/lib/llm/generate-carousel"
 import { validateGenerationText, ValidationError } from "@/lib/utils/validation"
 
@@ -38,13 +38,13 @@ export async function POST(req: Request) {
 
     const output = await generateCarousel(bodyUnknown.text, options)
 
-    const response: ApiResponse<PostOutput> = { success: true, data: output }
+    const response: ApiResponse<StructuredPostOutput> = { success: true, data: output }
     return NextResponse.json(response, { status: 200 })
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unexpected error"
 
     if (err instanceof ValidationError) {
-      const response: ApiResponse<PostOutput> = {
+      const response: ApiResponse<StructuredPostOutput> = {
         success: false,
         error: message,
       }
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     }
 
     if (process.env.NODE_ENV !== "production") {
-      const response: ApiResponse<PostOutput> = {
+      const response: ApiResponse<StructuredPostOutput> = {
         success: false,
         error: message,
       }
@@ -60,7 +60,7 @@ export async function POST(req: Request) {
       return NextResponse.json(response, { status: 500 })
     }
 
-    const response: ApiResponse<PostOutput> = {
+    const response: ApiResponse<StructuredPostOutput> = {
       success: false,
       error: "Failed to generate carousel",
     }
