@@ -3,7 +3,7 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { PostTheme, StructuredSlide } from "@/types/post"
+import type { PostTheme, RenderPreset, StructuredSlide } from "@/types/post"
 
 type DownloadActionsProps = {
   slides: StructuredSlide[]
@@ -14,10 +14,15 @@ type DownloadActionsProps = {
 type RenderBatchRequestBody = {
   slides: StructuredSlide[]
   theme: PostTheme
+  preset: RenderPreset
 }
 
-function buildRenderBatchRequest(slides: StructuredSlide[], theme: PostTheme): RenderBatchRequestBody {
-  return { slides, theme }
+function buildRenderBatchRequest(
+  slides: StructuredSlide[],
+  theme: PostTheme,
+  preset: RenderPreset
+): RenderBatchRequestBody {
+  return { slides, theme, preset }
 }
 
 async function downloadZipFromResponse(res: Response, filename: string): Promise<void> {
@@ -40,13 +45,13 @@ function DownloadActions({ slides, theme, className }: DownloadActionsProps) {
   const [isRendering, setIsRendering] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
-  const onDownload = async () => {
+  const onDownload = async (preset: RenderPreset) => {
     if (isRendering) return
     setError(null)
     setIsRendering(true)
 
     try {
-      const body = buildRenderBatchRequest(slides, theme)
+      const body = buildRenderBatchRequest(slides, theme, preset)
 
       const res = await fetch("/api/render/batch", {
         method: "POST",
@@ -58,7 +63,8 @@ function DownloadActions({ slides, theme, className }: DownloadActionsProps) {
         throw new Error("Failed to render slides")
       }
 
-      await downloadZipFromResponse(res, "slides.zip")
+      const filename = preset === "linkedin" ? "slides-1200x1500.zip" : "slides-1080x1080.zip"
+      await downloadZipFromResponse(res, filename)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to render slides"
       setError(message)
@@ -74,11 +80,22 @@ function DownloadActions({ slides, theme, className }: DownloadActionsProps) {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button type="button" className="w-full" onClick={onDownload} disabled={isRendering}>
-            {isRendering ? "Rendering..." : "Download Slides"}
+          <Button
+            type="button"
+            className="w-full"
+            onClick={() => onDownload("square")}
+            disabled={isRendering}
+          >
+            {isRendering ? "Rendering..." : "Download 1080x1080"}
           </Button>
-          <Button type="button" className="w-full" variant="outline" disabled>
-            Preview Carousel
+          <Button
+            type="button"
+            className="w-full"
+            variant="outline"
+            onClick={() => onDownload("linkedin")}
+            disabled={isRendering}
+          >
+            {isRendering ? "Rendering..." : "Download 1200x1500"}
           </Button>
         </div>
 

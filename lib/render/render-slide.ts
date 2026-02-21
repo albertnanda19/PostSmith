@@ -5,7 +5,8 @@ import type { Page } from "puppeteer"
 
 import { getBrowser } from "@/lib/render/browser"
 import { buildSlideHtml } from "@/lib/render/template-builder"
-import type { PostBackgroundColor, StructuredSlide } from "@/types/post"
+import type { PostBackgroundColor, RenderPreset, StructuredSlide } from "@/types/post"
+import { RENDER_PRESET_SIZES } from "@/types/post"
 
 function buildPublicBaseHref(): string {
   const publicDir = path.join(process.cwd(), "public")
@@ -31,16 +32,18 @@ async function closePageSafely(page: Page): Promise<void> {
 
 export async function renderSlideToPng(
   slide: StructuredSlide,
-  backgroundColor?: PostBackgroundColor
+  backgroundColor?: PostBackgroundColor,
+  preset: RenderPreset = "square"
 ): Promise<Buffer> {
   const browser = await getBrowser()
   const page = await browser.newPage()
 
   try {
-    await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 })
+    const size = RENDER_PRESET_SIZES[preset]
+    await page.setViewport({ width: size.width, height: size.height, deviceScaleFactor: 1 })
 
     const html = injectBaseHref(
-      buildSlideHtml(slide, backgroundColor),
+      buildSlideHtml(slide, backgroundColor, preset),
       buildPublicBaseHref()
     )
 

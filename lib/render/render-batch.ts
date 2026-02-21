@@ -4,7 +4,7 @@ import type { Readable } from "stream"
 
 import { renderSlideToPng } from "@/lib/render/render-slide"
 import { runWithConcurrencyLimit } from "@/lib/utils/promise-pool"
-import type { PostBackgroundColor, StructuredSlide } from "@/types/post"
+import type { PostBackgroundColor, RenderPreset, StructuredSlide } from "@/types/post"
 
 type IndexedSlide = {
   index: number
@@ -23,6 +23,7 @@ function createZipArchive(): Archiver {
 export function renderSlidesToZipStream(
   slides: StructuredSlide[],
   backgroundColor: PostBackgroundColor,
+  preset: RenderPreset,
   concurrency = 2
 ): Readable {
   if (!slides.length) {
@@ -54,7 +55,7 @@ export function renderSlidesToZipStream(
     const indexed: IndexedSlide[] = slides.map((slide, index) => ({ index, slide }))
 
     await runWithConcurrencyLimit(indexed, concurrency, async ({ index, slide }) => {
-      const png = await renderSlideToPng(slide, backgroundColor)
+      const png = await renderSlideToPng(slide, backgroundColor, preset)
 
       queueAppend(index, png)
       return null

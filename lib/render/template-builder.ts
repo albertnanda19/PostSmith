@@ -1,5 +1,6 @@
 import type { PostBackgroundColor, StructuredSlide } from "@/types/post"
-import { POST_BACKGROUND_COLORS } from "@/types/post"
+import type { RenderPreset } from "@/types/post"
+import { POST_BACKGROUND_COLORS, RENDER_PRESET_SIZES } from "@/types/post"
 
 function escapeHtml(input: string): string {
   return input
@@ -182,7 +183,8 @@ function renderCtaSlide(text: string, variant: "default" | "minimal"): string {
 
 export function buildSlideHtml(
   slide: StructuredSlide,
-  backgroundColor?: PostBackgroundColor
+  backgroundColor?: PostBackgroundColor,
+  preset: RenderPreset = "square"
 ): string {
   const body = (() => {
     switch (slide.type) {
@@ -209,6 +211,8 @@ export function buildSlideHtml(
   const resolvedBackgroundColor =
     backgroundColor ?? (pickBackgroundColor(slideToThemeSeed(slide)) as PostBackgroundColor)
 
+  const size = RENDER_PRESET_SIZES[preset]
+
   return `<!doctype html>
 <html lang="en">
   <head>
@@ -225,8 +229,8 @@ export function buildSlideHtml(
 
       html,
       body {
-        width: 1080px;
-        height: 1080px;
+        width: ${size.width}px;
+        height: ${size.height}px;
         margin: 0;
         padding: 0;
         background: var(--bg);
@@ -239,8 +243,8 @@ export function buildSlideHtml(
       }
 
       .frame {
-        width: 1080px;
-        height: 1080px;
+        width: ${size.width}px;
+        height: ${size.height}px;
         display: flex;
         flex-direction: column;
         position: relative;

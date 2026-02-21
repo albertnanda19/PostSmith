@@ -4,6 +4,15 @@ export type Slide = {
   visualHint: string
 }
 
+export const RENDER_PRESETS = ["square", "linkedin"] as const
+
+export type RenderPreset = (typeof RENDER_PRESETS)[number]
+
+export const RENDER_PRESET_SIZES: Record<RenderPreset, { width: number; height: number }> = {
+  square: { width: 1080, height: 1080 },
+  linkedin: { width: 1200, height: 1500 },
+}
+
 export const POST_BACKGROUND_COLORS = [
   "#0f172a",
   "#111827",

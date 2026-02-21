@@ -2,8 +2,8 @@ import { NextResponse } from "next/server"
 import type { Readable } from "stream"
 
 import { renderSlidesToZipStream } from "@/lib/render/render-batch"
-import type { PostBackgroundColor, StructuredSlide } from "@/types/post"
-import { POST_BACKGROUND_COLORS } from "@/types/post"
+import type { PostBackgroundColor, RenderPreset, StructuredSlide } from "@/types/post"
+import { POST_BACKGROUND_COLORS, RENDER_PRESETS } from "@/types/post"
 import { ValidationError } from "@/lib/utils/validation"
 
 export const runtime = "nodejs"
@@ -13,6 +13,7 @@ type RenderBatchRequestBody = {
   theme: {
     backgroundColor: PostBackgroundColor
   }
+  preset: RenderPreset
 }
 
 async function nodeStreamToBuffer(nodeStream: Readable): Promise<Buffer> {
@@ -90,6 +91,10 @@ function isPostBackgroundColor(value: unknown): value is PostBackgroundColor {
   return typeof value === "string" && POST_BACKGROUND_COLORS.includes(value as PostBackgroundColor)
 }
 
+function isRenderPreset(value: unknown): value is RenderPreset {
+  return typeof value === "string" && RENDER_PRESETS.includes(value as RenderPreset)
+}
+
 function isRenderBatchRequestBody(value: unknown): value is RenderBatchRequestBody {
   if (!isRecord(value)) return false
 
@@ -98,6 +103,8 @@ function isRenderBatchRequestBody(value: unknown): value is RenderBatchRequestBo
 
   if (!isRecord(record.theme)) return false
   if (!isPostBackgroundColor(record.theme.backgroundColor)) return false
+
+  if (!isRenderPreset(record.preset)) return false
 
   return record.slides.every(isStructuredSlide)
 }
@@ -117,6 +124,7 @@ export async function POST(req: Request) {
     const nodeStream = renderSlidesToZipStream(
       bodyUnknown.slides,
       bodyUnknown.theme.backgroundColor,
+      bodyUnknown.preset,
       2
     )
     const zipBuffer = await nodeStreamToBuffer(nodeStream)
