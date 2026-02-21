@@ -6,6 +6,18 @@ class GenerationError extends Error {
   override name = "GenerationError"
 }
 
+function isRetryableGenerationError(err: unknown): boolean {
+  if (!(err instanceof GenerationError)) return false
+  const retryable = new Set<string>([
+    "Model returned invalid JSON",
+    "Generated output has invalid slide types",
+    "Generated output is missing slides",
+    "Generated output is missing caption",
+    "Generated output is missing hashtags",
+  ])
+  return retryable.has(err.message)
+}
+
 function countWords(text: string): number {
   const parts = text
     .trim()
@@ -315,18 +327,34 @@ export async function generateCarousel(
   const maxSlides = clampMaxSlides(options.maxSlides)
   const prompt = buildCarouselPrompt(inputText, { ...options, maxSlides })
 
-  let raw: string
-  try {
-    raw = await generateGeminiText(prompt)
-  } catch (err) {
-    if (process.env.NODE_ENV !== "production") {
-      const message = err instanceof Error ? err.message : "Gemini generation failed"
-      throw new GenerationError(message)
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const attemptPrompt =
+      attempt === 0
+        ? prompt
+        : `${prompt}\n\nYour previous response was invalid. Return ONLY the JSON object matching the schema. Do not add any extra keys. Do not add any extra text.`
+
+    let raw: string
+    try {
+      raw = await generateGeminiText(attemptPrompt)
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        const message = err instanceof Error ? err.message : "Gemini generation failed"
+        throw new GenerationError(message)
+      }
+
+      throw new GenerationError("Gemini generation failed")
     }
 
-    throw new GenerationError("Gemini generation failed")
+    try {
+      const jsonText = extractJsonObject(raw)
+      return parseStructuredPostOutput(jsonText, maxSlides)
+    } catch (err) {
+      if (attempt === 0 && isRetryableGenerationError(err)) {
+        continue
+      }
+      throw err
+    }
   }
 
-  const jsonText = extractJsonObject(raw)
-  return parseStructuredPostOutput(jsonText, maxSlides)
+  throw new GenerationError("Gemini generation failed")
 }
