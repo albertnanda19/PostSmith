@@ -29,12 +29,18 @@ function applyHighlights(pointText: string, highlights: string[]): string {
   }, base)
 }
 
-function renderHeroSlide(title: string, subtitle: string): string {
+function renderHeroSlide(
+  title: string,
+  subtitle: string,
+  variant: "default" | "center"
+): string {
   const safeTitle = escapeHtml(title.trim())
   const safeSubtitle = escapeHtml(subtitle.trim())
 
+  const heroClass = variant === "center" ? "hero hero-center" : "hero"
+
   return `
-      <div class="content hero">
+      <div class="content ${heroClass}">
         <div class="inner">
           <h1 class="hero-title">${safeTitle}</h1>
           <p class="hero-subtitle">${safeSubtitle}</p>
@@ -42,7 +48,7 @@ function renderHeroSlide(title: string, subtitle: string): string {
       </div>`
 }
 
-function renderFlowSlide(steps: string[]): string {
+function renderFlowSlide(steps: string[], variant: "default" | "grid"): string {
   if (steps.length > 6) {
     throw new Error("Flow slide steps must be 6 or fewer")
   }
@@ -65,11 +71,13 @@ function renderFlowSlide(steps: string[]): string {
     )
     .join("")
 
+  const stackClass = variant === "grid" ? "flow-grid" : "flow-stack"
+
   return `
       <div class="content flow">
         <div class="inner">
           <h1 class="flow-title">Architecture Flow</h1>
-          <div class="flow-stack">${cards}</div>
+          <div class="${stackClass}">${cards}</div>
         </div>
       </div>`
 }
@@ -77,7 +85,8 @@ function renderFlowSlide(steps: string[]): string {
 function renderExplanationSlide(
   title: string,
   points: string[],
-  highlight: string[]
+  highlight: string[],
+  variant: "default" | "cards"
 ): string {
   const safeTitle = escapeHtml(title.trim())
 
@@ -92,6 +101,14 @@ function renderExplanationSlide(
   const items = safePoints
     .map((p) => {
       const html = applyHighlights(p, highlight)
+
+      if (variant === "cards") {
+        return `
+            <div class="point-card">
+              <div class="point-card-text">${html}</div>
+            </div>`
+      }
+
       return `
             <li class="point">
               <div class="bullet"></div>
@@ -100,24 +117,33 @@ function renderExplanationSlide(
     })
     .join("")
 
+  const pointsWrapper =
+    variant === "cards"
+      ? `<div class="points-cards">${items}
+          </div>`
+      : `<ul class="points">${items}
+          </ul>`
+
   return `
       <div class="content explanation">
         <div class="inner">
           <h1 class="explanation-title">${safeTitle}</h1>
-          <ul class="points">${items}
-          </ul>
+          ${pointsWrapper}
         </div>
       </div>`
 }
 
-function renderCtaSlide(text: string): string {
+function renderCtaSlide(text: string, variant: "default" | "minimal"): string {
   const safeText = escapeHtml(text.trim())
+
+  const mainClass = variant === "minimal" ? "cta-main cta-main-minimal" : "cta-main"
+  const divider = variant === "minimal" ? "" : '<div class="cta-divider"></div>'
 
   return `
       <div class="content cta">
         <div class="inner cta-inner">
-          <div class="cta-main">${safeText}</div>
-          <div class="cta-divider"></div>
+          <div class="${mainClass}">${safeText}</div>
+          ${divider}
           <div class="cta-footer">Albert Mangiri</div>
         </div>
       </div>`
@@ -127,13 +153,18 @@ export function buildSlideHtml(slide: StructuredSlide): string {
   const body = (() => {
     switch (slide.type) {
       case "hero":
-        return renderHeroSlide(slide.title, slide.subtitle)
+        return renderHeroSlide(slide.title, slide.subtitle, slide.variant ?? "default")
       case "flow":
-        return renderFlowSlide(slide.steps)
+        return renderFlowSlide(slide.steps, slide.variant ?? "default")
       case "explanation":
-        return renderExplanationSlide(slide.title, slide.points, slide.highlight)
+        return renderExplanationSlide(
+          slide.title,
+          slide.points,
+          slide.highlight,
+          slide.variant ?? "default"
+        )
       case "cta":
-        return renderCtaSlide(slide.text)
+        return renderCtaSlide(slide.text, slide.variant ?? "default")
       default: {
         const unreachable: never = slide
         throw new Error(`Unknown slide type: ${JSON.stringify(unreachable)}`)
@@ -211,6 +242,12 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         justify-content: flex-start;
       }
 
+      .hero-center {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
       .hero-title {
         font-size: 72px;
         line-height: 1.05;
@@ -251,6 +288,12 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         padding-left: 20px;
       }
 
+      .flow-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
       .flow-stack::before {
         content: "";
         position: absolute;
@@ -267,6 +310,10 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         padding: 24px;
         border-radius: 16px;
         position: relative;
+      }
+
+      .flow-grid .flow-step::before {
+        content: none;
       }
 
       .flow-step::before {
@@ -309,6 +356,28 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         display: flex;
         flex-direction: column;
         gap: 18px;
+      }
+
+      .points-cards {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 18px;
+      }
+
+      .point-card {
+        background: rgba(30, 41, 59, 0.9);
+        border-radius: 16px;
+        padding: 22px;
+        display: flex;
+        align-items: flex-start;
+      }
+
+      .point-card-text {
+        font-size: 24px;
+        line-height: 1.35;
+        font-weight: 600;
+        color: #e2e8f0;
+        overflow-wrap: anywhere;
       }
 
       .point {
@@ -364,6 +433,12 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         font-weight: 900;
         margin-top: 160px;
         overflow-wrap: anywhere;
+      }
+
+      .cta-main-minimal {
+        font-size: 58px;
+        letter-spacing: -0.02em;
+        margin-top: 200px;
       }
 
       .cta-divider {

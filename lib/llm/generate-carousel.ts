@@ -132,6 +132,30 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0
 }
 
+function normalizeVariant(
+  value: unknown,
+  label: string,
+  allowed: readonly string[],
+  defaultValue: string
+): string {
+  if (value === undefined || value === null || value === "") {
+    return defaultValue
+  }
+
+  if (typeof value !== "string") {
+    throw new GenerationError(`${label} must be a string`)
+  }
+
+  const normalized = value.trim()
+  ensureNoNewlines(normalized, label)
+
+  if (!allowed.includes(normalized)) {
+    throw new GenerationError(`${label} must be one of: ${allowed.join(", ")}`)
+  }
+
+  return normalized
+}
+
 function isHeroSlide(value: unknown): value is StructuredSlide {
   if (!isRecord(value)) return false
   return value.type === "hero" && isNonEmptyString(value.title) && isNonEmptyString(value.subtitle)
@@ -267,32 +291,63 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
     .filter(isStructuredSlide)
     .map<StructuredSlide>((slide) => {
       if (slide.type === "hero") {
+        const variant = normalizeVariant(
+          (slide as Record<string, unknown>).variant,
+          "Hero variant",
+          ["default", "center"],
+          "default"
+        )
         return {
           type: "hero" as const,
+          variant: variant as "default" | "center",
           title: normalizeText(slide.title, "Hero title"),
           subtitle: normalizeText(slide.subtitle, "Hero subtitle"),
         }
       }
 
       if (slide.type === "flow") {
+        const variant = normalizeVariant(
+          (slide as Record<string, unknown>).variant,
+          "Flow variant",
+          ["default", "grid"],
+          "default"
+        )
         const steps = slide.steps.map((s) => normalizeText(s, "Flow step"))
-        return { type: "flow" as const, steps }
+        return { type: "flow" as const, variant: variant as "default" | "grid", steps }
       }
 
       if (slide.type === "explanation") {
+        const variant = normalizeVariant(
+          (slide as Record<string, unknown>).variant,
+          "Explanation variant",
+          ["default", "cards"],
+          "default"
+        )
         const title = normalizeText(slide.title, "Explanation title")
         const points = slide.points.map((p) => normalizeText(p, "Explanation point"))
         const highlight = slide.highlight.map((h) => normalizeText(h, "Explanation highlight"))
 
         return normalizeExplanationHighlights({
           type: "explanation" as const,
+          variant: variant as "default" | "cards",
           title,
           points,
           highlight,
         })
       }
 
-      return { type: "cta" as const, text: normalizeText(slide.text, "CTA text") }
+      const variant = normalizeVariant(
+        (slide as Record<string, unknown>).variant,
+        "CTA variant",
+        ["default", "minimal"],
+        "default"
+      )
+
+      return {
+        type: "cta" as const,
+        variant: variant as "default" | "minimal",
+        text: normalizeText(slide.text, "CTA text"),
+      }
     })
   if (slides.length !== slidesValue.length) {
     throw new GenerationError("Generated output has invalid slide types")
