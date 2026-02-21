@@ -1,5 +1,6 @@
-import type { GenerationOptions, PostOutput } from "@/types/post"
+import type { GenerationOptions, PostOutput, StructuredPostOutput, StructuredSlide } from "@/types/post"
 
+import { adaptStructuredToLegacy } from "@/lib/adapters/structured-to-legacy"
 import { generateGeminiText } from "@/lib/llm/gemini-client"
 import { buildCarouselPrompt } from "@/lib/llm/prompt-builder"
 
@@ -33,6 +34,77 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === "string")
 }
 
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0
+}
+
+function isHeroSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "hero" && isNonEmptyString(value.title) && isNonEmptyString(value.subtitle)
+}
+
+function isFlowSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "flow" && Array.isArray(value.steps) && value.steps.every(isNonEmptyString)
+}
+
+function isExplanationSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return (
+    value.type === "explanation" &&
+    isNonEmptyString(value.title) &&
+    Array.isArray(value.points) &&
+    value.points.every(isNonEmptyString) &&
+    Array.isArray(value.highlight) &&
+    value.highlight.every(isNonEmptyString)
+  )
+}
+
+function isCtaSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "cta" && isNonEmptyString(value.text)
+}
+
+function isStructuredSlide(value: unknown): value is StructuredSlide {
+  return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
+}
+
+function validateExplanationHighlights(slide: Extract<StructuredSlide, { type: "explanation" }>): void {
+  const pointsLower = slide.points.map((p) => p.toLowerCase())
+
+  for (const term of slide.highlight) {
+    const needle = term.toLowerCase()
+    const found = pointsLower.some((p) => p.includes(needle))
+    if (!found) {
+      throw new GenerationError("Explanation highlight must appear in points")
+    }
+  }
+}
+
+function validateStructuredSlides(slides: StructuredSlide[], maxSlides: number): void {
+  if (slides.length < 3) {
+    throw new GenerationError("Generated output must have at least 3 slides")
+  }
+
+  if (slides.length > maxSlides) {
+    throw new GenerationError("Generated too many slides")
+  }
+
+  if (slides[0]?.type !== "hero") {
+    throw new GenerationError("First slide must be hero")
+  }
+
+  if (slides[slides.length - 1]?.type !== "cta") {
+    throw new GenerationError("Last slide must be cta")
+  }
+
+  for (const slide of slides) {
+    if (slide.type === "explanation") {
+      validateExplanationHighlights(slide)
+    }
+  }
+}
+
 function normalizeHashtag(tag: string): string {
   return tag.trim()
 }
@@ -53,7 +125,15 @@ function dedupeHashtags(hashtags: string[]): string[] {
   return out
 }
 
-function parsePostOutput(jsonText: string, maxSlides: number): PostOutput {
+function validateHashtags(hashtags: string[]): void {
+  for (const tag of hashtags) {
+    if (!tag.startsWith("#")) {
+      throw new GenerationError("Hashtags must start with #")
+    }
+  }
+}
+
+function parseStructuredPostOutput(jsonText: string, maxSlides: number): StructuredPostOutput {
   let parsed: unknown
   try {
     parsed = JSON.parse(jsonText) as unknown
@@ -73,17 +153,9 @@ function parsePostOutput(jsonText: string, maxSlides: number): PostOutput {
     throw new GenerationError("Generated output is missing slides")
   }
 
-  const slides = slidesValue
-    .filter(isRecord)
-    .map((s) => ({
-      headline: typeof s.headline === "string" ? s.headline.trim() : "",
-      content: typeof s.content === "string" ? s.content.trim() : "",
-      visualHint: typeof s.visualHint === "string" ? s.visualHint.trim() : "",
-    }))
-    .filter((s) => s.headline && s.content && s.visualHint)
-
-  if (slides.length === 0) {
-    throw new GenerationError("Generated output has no valid slides")
+  const slides = slidesValue.filter(isStructuredSlide)
+  if (slides.length !== slidesValue.length) {
+    throw new GenerationError("Generated output has invalid slide types")
   }
 
   if (typeof captionValue !== "string") {
@@ -94,12 +166,18 @@ function parsePostOutput(jsonText: string, maxSlides: number): PostOutput {
     throw new GenerationError("Generated output is missing hashtags")
   }
 
-  const cappedSlides = slides.slice(0, maxSlides)
+  const caption = captionValue.trim()
+  if (!caption) {
+    throw new GenerationError("Generated output is missing caption")
+  }
+
   const dedupedHashtags = dedupeHashtags(hashtagsValue).slice(0, 15)
+  validateHashtags(dedupedHashtags)
+  validateStructuredSlides(slides, maxSlides)
 
   return {
-    slides: cappedSlides,
-    caption: captionValue.trim(),
+    slides,
+    caption,
     hashtags: dedupedHashtags,
   }
 }
@@ -124,11 +202,6 @@ export async function generateCarousel(
   }
 
   const jsonText = extractJsonObject(raw)
-  const output = parsePostOutput(jsonText, maxSlides)
-
-  if (output.slides.length > maxSlides) {
-    throw new GenerationError("Generated too many slides")
-  }
-
-  return output
+  const structured = parseStructuredPostOutput(jsonText, maxSlides)
+  return adaptStructuredToLegacy(structured)
 }
