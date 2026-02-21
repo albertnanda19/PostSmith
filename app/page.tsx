@@ -1,31 +1,35 @@
+"use client"
+
+import * as React from "react"
+
 import { Header } from "@/components/layout/header"
 import { Container } from "@/components/layout/container"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { UploadDropzone } from "@/components/upload/upload-dropzone"
+import { SlideGrid } from "@/components/result/slide-grid"
+import { CaptionBox } from "@/components/result/caption-box"
+import { HashtagList } from "@/components/result/hashtag-list"
+import { DownloadActions } from "@/components/result/download-actions"
+import type { PostOutput } from "@/types/post"
 
 export default function Home() {
+  const [result, setResult] = React.useState<PostOutput | null>(null)
+
   return (
     <div className="min-h-dvh">
       <Header />
       <main className="py-10">
         <Container>
-          <div className="flex justify-center">
-            <Card className="w-full max-w-xl">
-              <CardHeader>
-                <CardTitle>Generate Carousel</CardTitle>
-                <CardDescription>
-                  Upload a PDF and generate slides, caption, and hashtags.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="rounded-lg border border-dashed border-neutral-200 bg-white p-6" />
-              </CardContent>
-            </Card>
+          <div className="mx-auto w-full max-w-3xl space-y-8">
+            <UploadDropzone onGenerated={setResult} />
+
+            {result ? (
+              <section className="space-y-6">
+                <SlideGrid slides={result.slides} />
+                <CaptionBox caption={result.caption} />
+                <HashtagList hashtags={result.hashtags} />
+                <DownloadActions />
+              </section>
+            ) : null}
           </div>
         </Container>
       </main>
