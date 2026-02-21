@@ -29,6 +29,21 @@ function countCaptionParagraphs(caption: string): number {
     .filter((p) => p.length > 0).length
 }
 
+function ensureNoNewlines(value: string, label: string): void {
+  if (value.includes("\n")) {
+    throw new GenerationError(`${label} must not contain newline characters`)
+  }
+}
+
+function normalizeText(value: string, label: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) {
+    throw new GenerationError(`${label} is required`)
+  }
+  ensureNoNewlines(trimmed, label)
+  return trimmed
+}
+
 function clampMaxSlides(maxSlides: number): number {
   const safe = Number.isFinite(maxSlides) ? Math.trunc(maxSlides) : 10
   if (safe <= 0) return 1
@@ -104,65 +119,33 @@ function normalizeExplanationHighlights(
 }
 
 function validateStructuredSlides(slides: StructuredSlide[], maxSlides: number): void {
-  if (slides.length < 3) {
-    throw new GenerationError("Generated output must have at least 3 slides")
+  if (maxSlides < 10) {
+    throw new GenerationError("Max slides must be at least 10")
   }
 
-  if (slides.length > maxSlides) {
-    throw new GenerationError("Generated too many slides")
+  if (slides.length !== 10) {
+    throw new GenerationError("Generated output must have exactly 10 slides")
   }
 
   if (slides[0]?.type !== "hero") {
-    throw new GenerationError("First slide must be hero")
+    throw new GenerationError("Slide 1 must be hero")
   }
 
-  if (slides[slides.length - 1]?.type !== "cta") {
-    throw new GenerationError("Last slide must be cta")
+  if (slides[9]?.type !== "cta") {
+    throw new GenerationError("Slide 10 must be cta")
   }
 
-  for (const slide of slides) {
-    if (slide.type === "hero") {
-      if (countWords(slide.title) > 8) {
-        throw new GenerationError("Hero title must be 8 words or fewer")
-      }
-      if (countWords(slide.subtitle) > 12) {
-        throw new GenerationError("Hero subtitle must be 12 words or fewer")
-      }
+  for (let i = 1; i < 9; i += 1) {
+    const t = slides[i]?.type
+    if (t === "hero" || t === "cta") {
+      throw new GenerationError("Only slide 1 can be hero and only slide 10 can be cta")
     }
+  }
 
-    if (slide.type === "flow") {
-      if (slide.steps.length < 3 || slide.steps.length > 4) {
-        throw new GenerationError("Flow slides must have 3 to 4 steps")
-      }
-
-      for (const step of slide.steps) {
-        if (countWords(step) > 6) {
-          throw new GenerationError("Flow steps must be 6 words or fewer")
-        }
-
-        if (/[.!?]/.test(step)) {
-          throw new GenerationError("Flow steps must not be full sentences")
-        }
-      }
-    }
-
-    if (slide.type === "explanation") {
-      if (slide.points.length < 2 || slide.points.length > 3) {
-        throw new GenerationError("Explanation slides must have 2 to 3 points")
-      }
-
-      for (const point of slide.points) {
-        if (countWords(point) > 14) {
-          throw new GenerationError("Explanation points must be 14 words or fewer")
-        }
-      }
-    }
-
-    if (slide.type === "cta") {
-      if (countNonEmptyLines(slide.text) > 2) {
-        throw new GenerationError("CTA must be 2 lines or fewer")
-      }
-    }
+  const coreSection = slides.slice(3, 6)
+  const hasFlowInCore = coreSection.some((s) => s.type === "flow")
+  if (!hasFlowInCore) {
+    throw new GenerationError("Slides 4 to 6 must include a flow slide")
   }
 }
 
@@ -191,6 +174,8 @@ function validateHashtags(hashtags: string[]): void {
     if (!tag.startsWith("#")) {
       throw new GenerationError("Hashtags must start with #")
     }
+
+    ensureNoNewlines(tag, "Hashtag")
   }
 }
 
@@ -214,13 +199,37 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
     throw new GenerationError("Generated output is missing slides")
   }
 
-  const slides = slidesValue.filter(isStructuredSlide).map((slide) => {
-    if (slide.type === "explanation") {
-      return normalizeExplanationHighlights(slide)
-    }
+  const slides = slidesValue
+    .filter(isStructuredSlide)
+    .map<StructuredSlide>((slide) => {
+      if (slide.type === "hero") {
+        return {
+          type: "hero" as const,
+          title: normalizeText(slide.title, "Hero title"),
+          subtitle: normalizeText(slide.subtitle, "Hero subtitle"),
+        }
+      }
 
-    return slide
-  })
+      if (slide.type === "flow") {
+        const steps = slide.steps.map((s) => normalizeText(s, "Flow step"))
+        return { type: "flow" as const, steps }
+      }
+
+      if (slide.type === "explanation") {
+        const title = normalizeText(slide.title, "Explanation title")
+        const points = slide.points.map((p) => normalizeText(p, "Explanation point"))
+        const highlight = slide.highlight.map((h) => normalizeText(h, "Explanation highlight"))
+
+        return normalizeExplanationHighlights({
+          type: "explanation" as const,
+          title,
+          points,
+          highlight,
+        })
+      }
+
+      return { type: "cta" as const, text: normalizeText(slide.text, "CTA text") }
+    })
   if (slides.length !== slidesValue.length) {
     throw new GenerationError("Generated output has invalid slide types")
   }
@@ -233,18 +242,15 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
     throw new GenerationError("Generated output is missing hashtags")
   }
 
-  const caption = captionValue.trim()
-  if (!caption) {
-    throw new GenerationError("Generated output is missing caption")
-  }
+  const caption = normalizeText(captionValue, "Caption")
 
   if (countCaptionParagraphs(caption) > 6) {
     throw new GenerationError("Caption must be 6 paragraphs or fewer")
   }
 
-  const dedupedHashtags = dedupeHashtags(hashtagsValue).slice(0, 8)
-  if (dedupedHashtags.length < 5 || dedupedHashtags.length > 8) {
-    throw new GenerationError("Hashtags must be 5 to 8 items")
+  const dedupedHashtags = dedupeHashtags(hashtagsValue).slice(0, 15)
+  if (dedupedHashtags.length < 8 || dedupedHashtags.length > 15) {
+    throw new GenerationError("Hashtags must be 8 to 15 items")
   }
   validateHashtags(dedupedHashtags)
   validateStructuredSlides(slides, maxSlides)
