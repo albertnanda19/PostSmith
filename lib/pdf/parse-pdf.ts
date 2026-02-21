@@ -34,7 +34,7 @@ function resolvePdfParse(mod: unknown): PdfParseFn {
     if (isClassConstructor(mod.PDFParse)) {
       const Parser = mod.PDFParse as PdfParseClass
       return async (buffer: Buffer) => {
-        const instance = new Parser({})
+        const instance = new Parser({ disableWorker: true })
         try {
           await instance.load(buffer)
           const text = await instance.getText()
@@ -56,7 +56,7 @@ function resolvePdfParse(mod: unknown): PdfParseFn {
     if (isClassConstructor(mod.default.PDFParse)) {
       const Parser = mod.default.PDFParse as PdfParseClass
       return async (buffer: Buffer) => {
-        const instance = new Parser({})
+        const instance = new Parser({ disableWorker: true })
         try {
           await instance.load(buffer)
           const text = await instance.getText()
