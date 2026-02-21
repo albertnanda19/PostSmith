@@ -41,12 +41,23 @@ export async function POST(req: Request) {
     const response: ApiResponse<PostOutput> = { success: true, data: output }
     return NextResponse.json(response, { status: 200 })
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Unexpected error"
+
     if (err instanceof ValidationError) {
       const response: ApiResponse<PostOutput> = {
         success: false,
-        error: err.message,
+        error: message,
       }
       return NextResponse.json(response, { status: 400 })
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      const response: ApiResponse<PostOutput> = {
+        success: false,
+        error: message,
+      }
+
+      return NextResponse.json(response, { status: 500 })
     }
 
     const response: ApiResponse<PostOutput> = {
