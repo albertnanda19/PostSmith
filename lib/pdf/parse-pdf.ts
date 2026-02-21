@@ -1,3 +1,6 @@
+import { createRequire } from "node:module"
+import { pathToFileURL } from "node:url"
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null
 }
@@ -32,6 +35,16 @@ function resolvePdfJs(mod: unknown): PdfJsModule {
   return mod as unknown as PdfJsModule
 }
 
+function resolvePdfJsDistUrls(): { pdfUrl: string; workerUrl: string } {
+  const require = createRequire(import.meta.url)
+  const pdfPath = require.resolve("pdfjs-dist/legacy/build/pdf.mjs")
+  const workerPath = require.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs")
+  return {
+    pdfUrl: pathToFileURL(pdfPath).toString(),
+    workerUrl: pathToFileURL(workerPath).toString(),
+  }
+}
+
 function extractTextItems(items: unknown[]): string {
   const parts: string[] = []
 
@@ -47,11 +60,12 @@ function extractTextItems(items: unknown[]): string {
 }
 
 export async function parsePdfBuffer(buffer: Buffer): Promise<string> {
-  const mod: unknown = await import("pdfjs-dist/legacy/build/pdf.mjs")
+  const { pdfUrl, workerUrl } = resolvePdfJsDistUrls()
+  const mod: unknown = await import(pdfUrl)
   const pdfjs = resolvePdfJs(mod)
 
   if (isRecord(mod) && isRecord(mod.GlobalWorkerOptions)) {
-    mod.GlobalWorkerOptions.workerSrc = "pdfjs-dist/legacy/build/pdf.worker.mjs"
+    mod.GlobalWorkerOptions.workerSrc = workerUrl
   }
 
   const data = new Uint8Array(buffer)
