@@ -33,6 +33,8 @@ export type HeroVariant = "default" | "center"
 export type FlowVariant = "default" | "grid"
 export type ExplanationVariant = "default" | "cards"
 export type CtaVariant = "default" | "minimal"
+export type ParagraphVariant = "default" | "wide"
+export type DiagramVariant = "default" | "grid"
 
 export type HeroSlide = {
   type: "hero"
@@ -61,7 +63,27 @@ export type CtaSlide = {
   text: string
 }
 
-export type StructuredSlide = HeroSlide | FlowSlide | ExplanationSlide | CtaSlide
+export type ParagraphSlide = {
+  type: "paragraph"
+  variant?: ParagraphVariant
+  title: string
+  text: string
+}
+
+export type DiagramSlide = {
+  type: "diagram"
+  variant?: DiagramVariant
+  title: string
+  nodes: string[]
+}
+
+export type StructuredSlide =
+  | HeroSlide
+  | FlowSlide
+  | ExplanationSlide
+  | CtaSlide
+  | ParagraphSlide
+  | DiagramSlide
 
 export type StructuredPostOutput = {
   slides: StructuredSlide[]

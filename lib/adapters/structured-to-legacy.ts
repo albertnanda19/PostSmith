@@ -26,6 +26,22 @@ export function adaptStructuredToLegacy(structured: StructuredPostOutput): PostO
       }
     }
 
+    if (slide.type === "paragraph") {
+      return {
+        headline: slide.title,
+        content: slide.text,
+        visualHint: "generic",
+      }
+    }
+
+    if (slide.type === "diagram") {
+      return {
+        headline: slide.title,
+        content: joinLines(slide.nodes),
+        visualHint: "generic",
+      }
+    }
+
     return { headline: "Final Thought", content: slide.text, visualHint: "generic" }
   })
 

@@ -190,8 +190,25 @@ function isCtaSlide(value: unknown): value is StructuredSlide {
   return value.type === "cta" && isNonEmptyString(value.text)
 }
 
+function isParagraphSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "paragraph" && isNonEmptyString(value.title) && isNonEmptyString(value.text)
+}
+
+function isDiagramSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "diagram" && isNonEmptyString(value.title) && Array.isArray(value.nodes) && value.nodes.every(isNonEmptyString)
+}
+
 function isStructuredSlide(value: unknown): value is StructuredSlide {
-  return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
+  return (
+    isHeroSlide(value) ||
+    isFlowSlide(value) ||
+    isExplanationSlide(value) ||
+    isParagraphSlide(value) ||
+    isDiagramSlide(value) ||
+    isCtaSlide(value)
+  )
 }
 
 function parseStructuredSlideAtIndex(value: unknown, index: number): StructuredSlide {
@@ -270,7 +287,48 @@ function parseStructuredSlideAtIndex(value: unknown, index: number): StructuredS
     }
   }
 
-  throw new GenerationError(`${label} type must be one of: hero, flow, explanation, cta`)
+  if (typeValue === "paragraph") {
+    if (!isNonEmptyString(value.title)) {
+      throw new GenerationError(`${label} paragraph.title is required`)
+    }
+    if (!isNonEmptyString(value.text)) {
+      throw new GenerationError(`${label} paragraph.text is required`)
+    }
+
+    const variant = normalizeVariant(value.variant, "Paragraph variant", ["default", "wide"], "default")
+    return {
+      type: "paragraph" as const,
+      variant: variant as "default" | "wide",
+      title: normalizeText(value.title, "Paragraph title"),
+      text: normalizeText(value.text, "Paragraph text"),
+    }
+  }
+
+  if (typeValue === "diagram") {
+    if (!isNonEmptyString(value.title)) {
+      throw new GenerationError(`${label} diagram.title is required`)
+    }
+    if (!Array.isArray(value.nodes) || !value.nodes.every(isNonEmptyString)) {
+      throw new GenerationError(`${label} diagram.nodes must be an array of strings`)
+    }
+
+    const nodes = value.nodes.map((n) => normalizeText(n, "Diagram node"))
+    if (nodes.length < 3 || nodes.length > 8) {
+      throw new GenerationError(`${label} diagram.nodes must have 3 to 8 items`)
+    }
+
+    const variant = normalizeVariant(value.variant, "Diagram variant", ["default", "grid"], "default")
+    return {
+      type: "diagram" as const,
+      variant: variant as "default" | "grid",
+      title: normalizeText(value.title, "Diagram title"),
+      nodes,
+    }
+  }
+
+  throw new GenerationError(
+    `${label} type must be one of: hero, flow, explanation, paragraph, diagram, cta`
+  )
 }
 
 function normalizeExplanationHighlights(

@@ -19,6 +19,10 @@ function slideToThemeSeed(slide: StructuredSlide): string {
       return slide.steps.join("|")
     case "explanation":
       return `${slide.title}|${slide.points.join("|")}|${slide.highlight.join("|")}`
+    case "paragraph":
+      return `${slide.title}|${slide.text}`
+    case "diagram":
+      return `${slide.title}|${slide.nodes.join("|")}`
     case "cta":
       return slide.text
     default: {
@@ -76,6 +80,60 @@ function renderHeroSlide(
         <div class="inner">
           <h1 class="hero-title">${safeTitle}</h1>
           <p class="hero-subtitle">${safeSubtitle}</p>
+        </div>
+      </div>`
+}
+
+function renderParagraphSlide(
+  title: string,
+  text: string,
+  variant: "default" | "wide"
+): string {
+  const safeTitle = escapeHtml(title.trim())
+  const safeText = escapeHtml(text.trim())
+
+  const cls = variant === "wide" ? "paragraph paragraph-wide" : "paragraph"
+
+  return `
+      <div class="content ${cls}">
+        <div class="inner">
+          <h1 class="paragraph-title">${safeTitle}</h1>
+          <p class="paragraph-text">${safeText}</p>
+        </div>
+      </div>`
+}
+
+function renderDiagramSlide(
+  title: string,
+  nodes: string[],
+  variant: "default" | "grid"
+): string {
+  const safeTitle = escapeHtml(title.trim())
+  const safeNodes = nodes
+    .map((n) => n.trim())
+    .filter((n) => n.length > 0)
+    .map((n) => escapeHtml(n))
+
+  if (safeNodes.length < 3) {
+    throw new Error("Diagram slide nodes must be 3 or more")
+  }
+
+  const nodeCards = safeNodes
+    .map(
+      (n) => `
+          <div class="diagram-node">
+            <div class="diagram-node-text">${n}</div>
+          </div>`
+    )
+    .join("")
+
+  const cls = variant === "grid" ? "diagram-grid" : "diagram-stack"
+
+  return `
+      <div class="content diagram">
+        <div class="inner">
+          <h1 class="diagram-title">${safeTitle}</h1>
+          <div class="${cls}">${nodeCards}</div>
         </div>
       </div>`
 }
@@ -199,6 +257,10 @@ export function buildSlideHtml(
           slide.highlight,
           slide.variant ?? "default"
         )
+      case "paragraph":
+        return renderParagraphSlide(slide.title, slide.text, slide.variant ?? "default")
+      case "diagram":
+        return renderDiagramSlide(slide.title, slide.nodes, slide.variant ?? "default")
       case "cta":
         return renderCtaSlide(slide.text, slide.variant ?? "default")
       default: {
@@ -212,6 +274,7 @@ export function buildSlideHtml(
     backgroundColor ?? (pickBackgroundColor(slideToThemeSeed(slide)) as PostBackgroundColor)
 
   const size = RENDER_PRESET_SIZES[preset]
+  const scale = preset === "linkedin" ? 1.2 : 1
 
   return `<!doctype html>
 <html lang="en">
@@ -221,6 +284,7 @@ export function buildSlideHtml(
     <style>
       :root {
         --bg: ${resolvedBackgroundColor};
+        --scale: ${scale};
       }
 
       * {
@@ -268,16 +332,16 @@ export function buildSlideHtml(
         position: relative;
         width: 100%;
         height: 100%;
-        padding: 120px;
+        padding: calc(120px * var(--scale));
         display: flex;
       }
 
       .inner {
         width: 100%;
-        max-width: 760px;
+        max-width: calc(760px * var(--scale));
         display: flex;
         flex-direction: column;
-        gap: 24px;
+        gap: calc(24px * var(--scale));
         margin-top: auto;
         margin-bottom: auto;
       }
@@ -294,20 +358,20 @@ export function buildSlideHtml(
       }
 
       .hero-title {
-        font-size: 72px;
+        font-size: calc(72px * var(--scale));
         line-height: 1.05;
         letter-spacing: -0.03em;
         font-weight: 800;
         margin: 0;
-        max-width: 760px;
+        max-width: calc(760px * var(--scale));
         overflow-wrap: anywhere;
       }
 
       .hero-subtitle {
-        font-size: 28px;
+        font-size: calc(28px * var(--scale));
         line-height: 1.25;
         margin: 0;
-        margin-top: 24px;
+        margin-top: calc(24px * var(--scale));
         color: #94a3b8;
         overflow-wrap: anywhere;
       }
@@ -318,7 +382,7 @@ export function buildSlideHtml(
       }
 
       .flow-title {
-        font-size: 56px;
+        font-size: calc(56px * var(--scale));
         line-height: 1.08;
         letter-spacing: -0.02em;
         font-weight: 800;
@@ -329,31 +393,31 @@ export function buildSlideHtml(
         position: relative;
         display: flex;
         flex-direction: column;
-        gap: 20px;
-        padding-left: 20px;
+        gap: calc(20px * var(--scale));
+        padding-left: calc(20px * var(--scale));
       }
 
       .flow-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 18px;
+        gap: calc(18px * var(--scale));
       }
 
       .flow-stack::before {
         content: "";
         position: absolute;
-        top: 12px;
-        bottom: 12px;
-        left: 7px;
-        width: 2px;
+        top: calc(12px * var(--scale));
+        bottom: calc(12px * var(--scale));
+        left: calc(7px * var(--scale));
+        width: calc(2px * var(--scale));
         background: rgba(148, 163, 184, 0.35);
         border-radius: 999px;
       }
 
       .flow-step {
         background: #1e293b;
-        padding: 24px;
-        border-radius: 16px;
+        padding: calc(24px * var(--scale));
+        border-radius: calc(16px * var(--scale));
         position: relative;
       }
 
@@ -364,16 +428,16 @@ export function buildSlideHtml(
       .flow-step::before {
         content: "";
         position: absolute;
-        top: 28px;
-        left: -20px;
-        width: 14px;
-        height: 14px;
+        top: calc(28px * var(--scale));
+        left: calc(-20px * var(--scale));
+        width: calc(14px * var(--scale));
+        height: calc(14px * var(--scale));
         border-radius: 999px;
         background: #94a3b8;
       }
 
       .flow-step-text {
-        font-size: 26px;
+        font-size: calc(26px * var(--scale));
         line-height: 1.25;
         font-weight: 600;
         margin: 0;
@@ -386,7 +450,7 @@ export function buildSlideHtml(
       }
 
       .explanation-title {
-        font-size: 56px;
+        font-size: calc(56px * var(--scale));
         line-height: 1.08;
         letter-spacing: -0.02em;
         font-weight: 800;
@@ -400,25 +464,25 @@ export function buildSlideHtml(
         margin: 0;
         display: flex;
         flex-direction: column;
-        gap: 18px;
+        gap: calc(18px * var(--scale));
       }
 
       .points-cards {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 18px;
+        gap: calc(18px * var(--scale));
       }
 
       .point-card {
         background: rgba(30, 41, 59, 0.9);
-        border-radius: 16px;
-        padding: 22px;
+        border-radius: calc(16px * var(--scale));
+        padding: calc(22px * var(--scale));
         display: flex;
         align-items: flex-start;
       }
 
       .point-card-text {
-        font-size: 24px;
+        font-size: calc(24px * var(--scale));
         line-height: 1.35;
         font-weight: 600;
         color: #e2e8f0;
@@ -428,21 +492,21 @@ export function buildSlideHtml(
       .point {
         display: flex;
         flex-direction: row;
-        gap: 16px;
+        gap: calc(16px * var(--scale));
         align-items: flex-start;
       }
 
       .bullet {
-        width: 10px;
-        height: 10px;
+        width: calc(10px * var(--scale));
+        height: calc(10px * var(--scale));
         border-radius: 999px;
         background: rgba(148, 163, 184, 0.9);
-        margin-top: 12px;
+        margin-top: calc(12px * var(--scale));
         flex: 0 0 auto;
       }
 
       .point-text {
-        font-size: 24px;
+        font-size: calc(24px * var(--scale));
         line-height: 1.4;
         font-weight: 500;
         color: #e2e8f0;
@@ -452,10 +516,77 @@ export function buildSlideHtml(
       .highlight {
         background: #22c55e;
         color: #0f172a;
-        padding: 4px 8px;
-        border-radius: 6px;
+        padding: calc(4px * var(--scale)) calc(8px * var(--scale));
+        border-radius: calc(6px * var(--scale));
         font-weight: 800;
         display: inline-block;
+      }
+
+      .paragraph {
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+
+      .paragraph-wide .inner {
+        max-width: calc(900px * var(--scale));
+      }
+
+      .paragraph-title {
+        font-size: calc(56px * var(--scale));
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        font-weight: 800;
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .paragraph-text {
+        font-size: calc(30px * var(--scale));
+        line-height: 1.5;
+        font-weight: 500;
+        margin: 0;
+        color: #e2e8f0;
+        overflow-wrap: anywhere;
+      }
+
+      .diagram {
+        align-items: flex-start;
+        justify-content: flex-start;
+      }
+
+      .diagram-title {
+        font-size: calc(56px * var(--scale));
+        line-height: 1.08;
+        letter-spacing: -0.02em;
+        font-weight: 800;
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .diagram-stack {
+        display: flex;
+        flex-direction: column;
+        gap: calc(16px * var(--scale));
+      }
+
+      .diagram-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: calc(16px * var(--scale));
+      }
+
+      .diagram-node {
+        background: rgba(30, 41, 59, 0.9);
+        border-radius: calc(16px * var(--scale));
+        padding: calc(22px * var(--scale));
+      }
+
+      .diagram-node-text {
+        font-size: calc(26px * var(--scale));
+        line-height: 1.3;
+        font-weight: 700;
+        color: #e2e8f0;
+        overflow-wrap: anywhere;
       }
 
       .cta {
@@ -472,32 +603,32 @@ export function buildSlideHtml(
       }
 
       .cta-main {
-        font-size: 64px;
+        font-size: calc(64px * var(--scale));
         line-height: 1.08;
         letter-spacing: -0.03em;
         font-weight: 900;
-        margin-top: 160px;
+        margin-top: calc(160px * var(--scale));
         overflow-wrap: anywhere;
       }
 
       .cta-main-minimal {
-        font-size: 58px;
+        font-size: calc(58px * var(--scale));
         letter-spacing: -0.02em;
-        margin-top: 200px;
+        margin-top: calc(200px * var(--scale));
       }
 
       .cta-divider {
-        width: 180px;
-        height: 2px;
+        width: calc(180px * var(--scale));
+        height: calc(2px * var(--scale));
         background: rgba(148, 163, 184, 0.35);
         border-radius: 999px;
-        margin: 28px auto 0;
+        margin: calc(28px * var(--scale)) auto 0;
       }
 
       .cta-footer {
         margin-top: auto;
-        padding-bottom: 40px;
-        font-size: 18px;
+        padding-bottom: calc(40px * var(--scale));
+        font-size: calc(18px * var(--scale));
         letter-spacing: 0.02em;
         color: rgba(148, 163, 184, 0.7);
       }

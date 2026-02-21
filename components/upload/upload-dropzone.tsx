@@ -72,8 +72,30 @@ function isCtaSlide(value: unknown): value is StructuredSlide {
   return value.type === "cta" && typeof value.text === "string"
 }
 
+function isParagraphSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "paragraph" && typeof value.title === "string" && typeof value.text === "string"
+}
+
+function isDiagramSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return (
+    value.type === "diagram" &&
+    typeof value.title === "string" &&
+    Array.isArray(value.nodes) &&
+    value.nodes.every((n) => typeof n === "string")
+  )
+}
+
 function isStructuredSlide(value: unknown): value is StructuredSlide {
-  return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
+  return (
+    isHeroSlide(value) ||
+    isFlowSlide(value) ||
+    isExplanationSlide(value) ||
+    isParagraphSlide(value) ||
+    isDiagramSlide(value) ||
+    isCtaSlide(value)
+  )
 }
 
 function isStructuredPostOutput(value: unknown): value is StructuredPostOutput {
