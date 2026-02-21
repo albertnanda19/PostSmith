@@ -67,16 +67,17 @@ function isStructuredSlide(value: unknown): value is StructuredSlide {
   return isHeroSlide(value) || isFlowSlide(value) || isExplanationSlide(value) || isCtaSlide(value)
 }
 
-function validateExplanationHighlights(slide: Extract<StructuredSlide, { type: "explanation" }>): void {
+function normalizeExplanationHighlights(
+  slide: Extract<StructuredSlide, { type: "explanation" }>
+): Extract<StructuredSlide, { type: "explanation" }> {
   const pointsLower = slide.points.map((p) => p.toLowerCase())
 
-  for (const term of slide.highlight) {
+  const highlight = slide.highlight.filter((term) => {
     const needle = term.toLowerCase()
-    const found = pointsLower.some((p) => p.includes(needle))
-    if (!found) {
-      throw new GenerationError("Explanation highlight must appear in points")
-    }
-  }
+    return pointsLower.some((p) => p.includes(needle))
+  })
+
+  return { ...slide, highlight }
 }
 
 function validateStructuredSlides(slides: StructuredSlide[], maxSlides: number): void {
@@ -94,12 +95,6 @@ function validateStructuredSlides(slides: StructuredSlide[], maxSlides: number):
 
   if (slides[slides.length - 1]?.type !== "cta") {
     throw new GenerationError("Last slide must be cta")
-  }
-
-  for (const slide of slides) {
-    if (slide.type === "explanation") {
-      validateExplanationHighlights(slide)
-    }
   }
 }
 
@@ -151,7 +146,13 @@ function parseStructuredPostOutput(jsonText: string, maxSlides: number): Structu
     throw new GenerationError("Generated output is missing slides")
   }
 
-  const slides = slidesValue.filter(isStructuredSlide)
+  const slides = slidesValue.filter(isStructuredSlide).map((slide) => {
+    if (slide.type === "explanation") {
+      return normalizeExplanationHighlights(slide)
+    }
+
+    return slide
+  })
   if (slides.length !== slidesValue.length) {
     throw new GenerationError("Generated output has invalid slide types")
   }
