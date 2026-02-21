@@ -38,6 +38,7 @@ export function buildCarouselPrompt(
     "- Do not output any other type values.",
     "- hero slide must have only: type, title, subtitle.",
     "- flow slide must have only: type, steps.",
+    "- flow.steps must contain 6 items or fewer.",
     "- explanation slide must have only: type, title, points, highlight.",
     "- cta slide must have only: type, text.",
     "Rules:",

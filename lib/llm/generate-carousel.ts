@@ -205,6 +205,12 @@ function validateStructuredSlides(slides: StructuredSlide[], maxSlides: number):
   if (!hasFlowInCore) {
     throw new GenerationError("Slides 4 to 6 must include a flow slide")
   }
+
+  for (const slide of slides) {
+    if (slide.type === "flow" && slide.steps.length > 6) {
+      throw new GenerationError("Flow slide steps must be 6 or fewer")
+    }
+  }
 }
 
 function normalizeHashtag(tag: string): string {
