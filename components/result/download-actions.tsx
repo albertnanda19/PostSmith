@@ -25,7 +25,7 @@ function buildRenderBatchRequest(
   return { slides, theme, preset }
 }
 
-async function downloadZipFromResponse(res: Response, filename: string): Promise<void> {
+async function downloadFileFromResponse(res: Response, filename: string): Promise<void> {
   const blob = await res.blob()
   const objectUrl = URL.createObjectURL(blob)
 
@@ -64,9 +64,36 @@ function DownloadActions({ slides, theme, className }: DownloadActionsProps) {
       }
 
       const filename = preset === "linkedin" ? "slides-1200x1500.zip" : "slides-1080x1080.zip"
-      await downloadZipFromResponse(res, filename)
+      await downloadFileFromResponse(res, filename)
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to render slides"
+      setError(message)
+    } finally {
+      setIsRendering(false)
+    }
+  }
+
+  const onDownloadPdfLinkedIn = async () => {
+    if (isRendering) return
+    setError(null)
+    setIsRendering(true)
+
+    try {
+      const body = buildRenderBatchRequest(slides, theme, "linkedin")
+
+      const res = await fetch("/api/render/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to render PDF")
+      }
+
+      await downloadFileFromResponse(res, "slides-1200x1500.pdf")
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to render PDF"
       setError(message)
     } finally {
       setIsRendering(false)
@@ -96,6 +123,15 @@ function DownloadActions({ slides, theme, className }: DownloadActionsProps) {
             disabled={isRendering}
           >
             {isRendering ? "Rendering..." : "Download 1200x1500"}
+          </Button>
+          <Button
+            type="button"
+            className="w-full"
+            variant="secondary"
+            onClick={onDownloadPdfLinkedIn}
+            disabled={isRendering}
+          >
+            {isRendering ? "Rendering..." : "Download PDF 1200x1500"}
           </Button>
         </div>
 
