@@ -1,4 +1,5 @@
 const MAX_PDF_SIZE_BYTES = 10 * 1024 * 1024
+const MIN_GENERATION_TEXT_LENGTH = 100
 
 export class ValidationError extends Error {
   override name = "ValidationError"
@@ -19,5 +20,15 @@ export function validatePdfFile(file: File): void {
 
   if (file.size > MAX_PDF_SIZE_BYTES) {
     throw new ValidationError("PDF file must not exceed 10MB")
+  }
+}
+
+export function validateGenerationText(text: string): void {
+  if (!text || !text.trim()) {
+    throw new ValidationError("Text is required")
+  }
+
+  if (text.trim().length < MIN_GENERATION_TEXT_LENGTH) {
+    throw new ValidationError("Text must be at least 100 characters")
   }
 }
