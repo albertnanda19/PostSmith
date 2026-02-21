@@ -106,7 +106,7 @@ function DownloadActions({ slides, theme, className }: DownloadActionsProps) {
         <CardTitle className="text-base">Actions</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3">
           <Button
             type="button"
             className="w-full"
