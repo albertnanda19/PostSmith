@@ -19,8 +19,10 @@ function resolveGeminiApiKey(): string {
 
 function resolveGeminiModel(): string {
   const model = process.env.GEMINI_MODEL
-  if (model && typeof model === "string" && model.trim()) return model.trim()
-  return "gemini-3-flash-preview"
+  const raw = model && typeof model === "string" ? model.trim() : ""
+  const normalized = raw.startsWith("models/") ? raw.slice("models/".length) : raw
+  if (normalized) return normalized
+  return "gemini-1.5-flash"
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
