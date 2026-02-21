@@ -9,6 +9,47 @@ function escapeHtml(input: string): string {
     .replaceAll("'", "&#39;")
 }
 
+function slideToThemeSeed(slide: StructuredSlide): string {
+  switch (slide.type) {
+    case "hero":
+      return `${slide.title}|${slide.subtitle}`
+    case "flow":
+      return slide.steps.join("|")
+    case "explanation":
+      return `${slide.title}|${slide.points.join("|")}|${slide.highlight.join("|")}`
+    case "cta":
+      return slide.text
+    default: {
+      const unreachable: never = slide
+      return String(unreachable)
+    }
+  }
+}
+
+function hashStringToInt(input: string): number {
+  let hash = 0
+  for (let i = 0; i < input.length; i += 1) {
+    hash = (hash * 31 + input.charCodeAt(i)) | 0
+  }
+  return hash
+}
+
+function pickBackgroundColor(slide: StructuredSlide): string {
+  const palette = [
+    "#0f172a",
+    "#111827",
+    "#0b1324",
+    "#0a1b2a",
+    "#111b2e",
+    "#0b1f1a",
+    "#1a1026",
+  ]
+
+  const seed = slideToThemeSeed(slide)
+  const idx = Math.abs(hashStringToInt(seed)) % palette.length
+  return palette[idx] ?? "#0f172a"
+}
+
 function escapeRegex(input: string): string {
   return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 }
@@ -172,12 +213,18 @@ export function buildSlideHtml(slide: StructuredSlide): string {
     }
   })()
 
+  const backgroundColor = pickBackgroundColor(slide)
+
   return `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>
+      :root {
+        --bg: ${backgroundColor};
+      }
+
       * {
         box-sizing: border-box;
       }
@@ -188,7 +235,7 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         height: 1080px;
         margin: 0;
         padding: 0;
-        background: #0f172a;
+        background: var(--bg);
       }
 
       body {
@@ -204,7 +251,7 @@ export function buildSlideHtml(slide: StructuredSlide): string {
         flex-direction: column;
         position: relative;
         overflow: hidden;
-        background: #0f172a;
+        background: var(--bg);
       }
 
       .frame::before {
