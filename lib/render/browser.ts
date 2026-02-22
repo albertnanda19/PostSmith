@@ -3,10 +3,18 @@ import puppeteer, { type Browser } from "puppeteer"
 let browserPromise: Promise<Browser> | null = null
 let browserInstance: Browser | null = null
 
+function resolveExecutablePath(): string | undefined {
+  const value = process.env.PUPPETEER_EXECUTABLE_PATH
+  const raw = value && typeof value === "string" ? value.trim() : ""
+  return raw ? raw : undefined
+}
+
 async function launchBrowser(): Promise<Browser> {
+  const executablePath = resolveExecutablePath()
   const browser = await puppeteer.launch({
     headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    ...(executablePath ? { executablePath } : {}),
   })
 
   browser.on("disconnected", () => {
