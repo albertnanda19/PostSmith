@@ -64,8 +64,8 @@ function applyHighlights(pointText: string, highlights: string[]): string {
 
   return unique.reduce((acc, highlight) => {
     const safeHighlight = escapeHtml(highlight)
-    const re = new RegExp(escapeRegex(safeHighlight), "g")
-    return acc.replace(re, `<span class="highlight">${safeHighlight}</span>`)
+    const re = new RegExp(escapeRegex(safeHighlight), "gi")
+    return acc.replace(re, (match) => `<span class="highlight">${match}</span>`)
   }, base)
 }
 
