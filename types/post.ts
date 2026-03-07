@@ -35,6 +35,8 @@ export type ExplanationVariant = "default" | "cards"
 export type CtaVariant = "default" | "minimal"
 export type ParagraphVariant = "default" | "wide"
 export type DiagramVariant = "default" | "grid"
+export type QuoteVariant = "default" | "highlight"
+export type StatVariant = "default" | "minimal"
 
 export type HeroSlide = {
   type: "hero"
@@ -77,6 +79,20 @@ export type DiagramSlide = {
   nodes: string[]
 }
 
+export type QuoteSlide = {
+  type: "quote"
+  variant?: QuoteVariant
+  quote: string
+  attribution?: string
+}
+
+export type StatSlide = {
+  type: "stat"
+  variant?: StatVariant
+  value: string
+  label: string
+}
+
 export type StructuredSlide =
   | HeroSlide
   | FlowSlide
@@ -84,6 +100,8 @@ export type StructuredSlide =
   | CtaSlide
   | ParagraphSlide
   | DiagramSlide
+  | QuoteSlide
+  | StatSlide
 
 export type StructuredPostOutput = {
   slides: StructuredSlide[]

@@ -87,6 +87,22 @@ function isDiagramSlide(value: unknown): value is StructuredSlide {
   )
 }
 
+function isQuoteSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "quote" && typeof value.quote === "string" && value.quote.trim().length > 0
+}
+
+function isStatSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return (
+    value.type === "stat" &&
+    typeof value.value === "string" &&
+    value.value.trim().length > 0 &&
+    typeof value.label === "string" &&
+    value.label.trim().length > 0
+  )
+}
+
 function isStructuredSlide(value: unknown): value is StructuredSlide {
   return (
     isHeroSlide(value) ||
@@ -94,6 +110,8 @@ function isStructuredSlide(value: unknown): value is StructuredSlide {
     isExplanationSlide(value) ||
     isParagraphSlide(value) ||
     isDiagramSlide(value) ||
+    isQuoteSlide(value) ||
+    isStatSlide(value) ||
     isCtaSlide(value)
   )
 }

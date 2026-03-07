@@ -93,6 +93,16 @@ function isDiagramSlide(value: unknown): value is StructuredSlide {
   )
 }
 
+function isQuoteSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "quote" && isNonEmptyString(value.quote)
+}
+
+function isStatSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "stat" && isNonEmptyString(value.value) && isNonEmptyString(value.label)
+}
+
 function isCtaSlide(value: unknown): value is StructuredSlide {
   if (!isRecord(value)) return false
   return value.type === "cta" && isNonEmptyString(value.text)
@@ -105,6 +115,8 @@ function isStructuredSlide(value: unknown): value is StructuredSlide {
     isExplanationSlide(value) ||
     isParagraphSlide(value) ||
     isDiagramSlide(value) ||
+    isQuoteSlide(value) ||
+    isStatSlide(value) ||
     isCtaSlide(value)
   )
 }

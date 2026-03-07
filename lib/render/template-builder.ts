@@ -23,6 +23,10 @@ function slideToThemeSeed(slide: StructuredSlide): string {
       return `${slide.title}|${slide.text}`
     case "diagram":
       return `${slide.title}|${slide.nodes.join("|")}`
+    case "quote":
+      return `${slide.quote}|${slide.attribution ?? ""}`
+    case "stat":
+      return `${slide.value}|${slide.label}`
     case "cta":
       return slide.text
     default: {
@@ -239,6 +243,47 @@ function renderCtaSlide(text: string, variant: "default" | "minimal"): string {
       </div>`
 }
 
+function renderQuoteSlide(
+  quote: string,
+  attribution: string | undefined,
+  variant: "default" | "highlight"
+): string {
+  const safeQuote = escapeHtml(quote.trim())
+  const safeAttribution = attribution?.trim() ? escapeHtml(attribution.trim()) : ""
+
+  const blockClass = variant === "highlight" ? "quote quote-highlight" : "quote"
+  const attributionBlock = safeAttribution
+    ? `<p class="quote-attribution">${safeAttribution}</p>`
+    : ""
+
+  return `
+      <div class="content ${blockClass}">
+        <div class="inner">
+          <blockquote class="quote-text">${safeQuote}</blockquote>
+          ${attributionBlock}
+        </div>
+      </div>`
+}
+
+function renderStatSlide(
+  value: string,
+  label: string,
+  variant: "default" | "minimal"
+): string {
+  const safeValue = escapeHtml(value.trim())
+  const safeLabel = escapeHtml(label.trim())
+
+  const blockClass = variant === "minimal" ? "stat stat-minimal" : "stat"
+
+  return `
+      <div class="content ${blockClass}">
+        <div class="inner">
+          <div class="stat-value">${safeValue}</div>
+          <p class="stat-label">${safeLabel}</p>
+        </div>
+      </div>`
+}
+
 export function buildSlideHtml(
   slide: StructuredSlide,
   backgroundColor?: PostBackgroundColor,
@@ -261,6 +306,10 @@ export function buildSlideHtml(
         return renderParagraphSlide(slide.title, slide.text, slide.variant ?? "default")
       case "diagram":
         return renderDiagramSlide(slide.title, slide.nodes, slide.variant ?? "default")
+      case "quote":
+        return renderQuoteSlide(slide.quote, slide.attribution, slide.variant ?? "default")
+      case "stat":
+        return renderStatSlide(slide.value, slide.label, slide.variant ?? "default")
       case "cta":
         return renderCtaSlide(slide.text, slide.variant ?? "default")
       default: {
@@ -586,6 +635,69 @@ export function buildSlideHtml(
         line-height: 1.3;
         font-weight: 700;
         color: #e2e8f0;
+        overflow-wrap: anywhere;
+      }
+
+      .quote {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .quote-highlight .quote-text {
+        border-left: calc(6px * var(--scale)) solid #22c55e;
+        padding-left: calc(24px * var(--scale));
+        text-align: left;
+      }
+
+      .quote .inner {
+        max-width: calc(720px * var(--scale));
+      }
+
+      .quote-text {
+        font-size: calc(32px * var(--scale));
+        line-height: 1.45;
+        font-weight: 600;
+        font-style: italic;
+        margin: 0;
+        color: #e2e8f0;
+        overflow-wrap: anywhere;
+      }
+
+      .quote-attribution {
+        font-size: calc(22px * var(--scale));
+        color: #94a3b8;
+        margin: 0;
+        margin-top: calc(20px * var(--scale));
+        overflow-wrap: anywhere;
+      }
+
+      .stat {
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: calc(80px * var(--scale));
+        line-height: 1;
+        letter-spacing: -0.03em;
+        font-weight: 900;
+        color: #ffffff;
+        overflow-wrap: anywhere;
+      }
+
+      .stat-minimal .stat-value {
+        font-size: calc(64px * var(--scale));
+      }
+
+      .stat-label {
+        font-size: calc(28px * var(--scale));
+        line-height: 1.3;
+        font-weight: 600;
+        color: #94a3b8;
+        margin: 0;
+        margin-top: calc(16px * var(--scale));
         overflow-wrap: anywhere;
       }
 

@@ -14,13 +14,17 @@ function getSlideTitle(slide: StructuredSlide): string {
     case "hero":
       return slide.title
     case "flow":
-      return "Architecture Flow"
+      return "Flow"
     case "explanation":
       return slide.title
     case "paragraph":
       return slide.title
     case "diagram":
       return slide.title
+    case "quote":
+      return "Quote"
+    case "stat":
+      return slide.value
     case "cta":
       return "CTA"
     default: {
@@ -42,6 +46,10 @@ function getSlideBody(slide: StructuredSlide): string {
       return slide.text
     case "diagram":
       return slide.nodes.join("\n")
+    case "quote":
+      return slide.attribution ? `${slide.quote}\n— ${slide.attribution}` : slide.quote
+    case "stat":
+      return slide.label
     case "cta":
       return slide.text
     default: {

@@ -42,6 +42,22 @@ export function adaptStructuredToLegacy(structured: StructuredPostOutput): PostO
       }
     }
 
+    if (slide.type === "quote") {
+      return {
+        headline: "Quote",
+        content: slide.attribution ? `${slide.quote}\n— ${slide.attribution}` : slide.quote,
+        visualHint: "generic",
+      }
+    }
+
+    if (slide.type === "stat") {
+      return {
+        headline: slide.value,
+        content: slide.label,
+        visualHint: "generic",
+      }
+    }
+
     return { headline: "Final Thought", content: slide.text, visualHint: "generic" }
   })
 

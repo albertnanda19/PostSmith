@@ -200,6 +200,16 @@ function isDiagramSlide(value: unknown): value is StructuredSlide {
   return value.type === "diagram" && isNonEmptyString(value.title) && Array.isArray(value.nodes) && value.nodes.every(isNonEmptyString)
 }
 
+function isQuoteSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "quote" && isNonEmptyString(value.quote)
+}
+
+function isStatSlide(value: unknown): value is StructuredSlide {
+  if (!isRecord(value)) return false
+  return value.type === "stat" && isNonEmptyString(value.value) && isNonEmptyString(value.label)
+}
+
 function isStructuredSlide(value: unknown): value is StructuredSlide {
   return (
     isHeroSlide(value) ||
@@ -207,6 +217,8 @@ function isStructuredSlide(value: unknown): value is StructuredSlide {
     isExplanationSlide(value) ||
     isParagraphSlide(value) ||
     isDiagramSlide(value) ||
+    isQuoteSlide(value) ||
+    isStatSlide(value) ||
     isCtaSlide(value)
   )
 }
@@ -326,8 +338,41 @@ function parseStructuredSlideAtIndex(value: unknown, index: number): StructuredS
     }
   }
 
+  if (typeValue === "quote") {
+    if (!isNonEmptyString(value.quote)) {
+      throw new GenerationError(`${label} quote.quote is required`)
+    }
+    const variant = normalizeVariant(value.variant, "Quote variant", ["default", "highlight"], "default")
+    const attribution =
+      value.attribution !== undefined && value.attribution !== null && String(value.attribution).trim() !== ""
+        ? normalizeText(String(value.attribution).trim(), "Quote attribution")
+        : undefined
+    return {
+      type: "quote" as const,
+      variant: variant as "default" | "highlight",
+      quote: normalizeText(value.quote, "Quote"),
+      ...(attribution !== undefined && { attribution }),
+    }
+  }
+
+  if (typeValue === "stat") {
+    if (!isNonEmptyString(value.value)) {
+      throw new GenerationError(`${label} stat.value is required`)
+    }
+    if (!isNonEmptyString(value.label)) {
+      throw new GenerationError(`${label} stat.label is required`)
+    }
+    const variant = normalizeVariant(value.variant, "Stat variant", ["default", "minimal"], "default")
+    return {
+      type: "stat" as const,
+      variant: variant as "default" | "minimal",
+      value: normalizeText(value.value, "Stat value"),
+      label: normalizeText(value.label, "Stat label"),
+    }
+  }
+
   throw new GenerationError(
-    `${label} type must be one of: hero, flow, explanation, paragraph, diagram, cta`
+    `${label} type must be one of: hero, flow, explanation, paragraph, diagram, quote, stat, cta`
   )
 }
 
