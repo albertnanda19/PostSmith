@@ -98,6 +98,8 @@ export type PostOutput = {
   hashtags: string[]
 }
 
+export const MIN_CAROUSEL_SLIDES = 4
+
 export type GenerationOptions = {
   maxSlides: number
   tone: string

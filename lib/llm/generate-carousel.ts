@@ -1,5 +1,5 @@
 import type { GenerationOptions, PostTheme, StructuredPostOutput, StructuredSlide } from "@/types/post"
-import { POST_BACKGROUND_COLORS } from "@/types/post"
+import { MIN_CAROUSEL_SLIDES, POST_BACKGROUND_COLORS } from "@/types/post"
 import { generateGeminiText } from "@/lib/llm/gemini-client"
 import { buildCarouselPrompt } from "@/lib/llm/prompt-builder"
 
@@ -65,9 +65,9 @@ function normalizeText(value: string, label: string): string {
 
 function clampMaxSlides(maxSlides: number): number {
   const safe = Number.isFinite(maxSlides) ? Math.trunc(maxSlides) : 10
-  if (safe <= 0) return 1
+  if (safe <= 0) return MIN_CAROUSEL_SLIDES
   if (safe > 10) return 10
-  return safe
+  return Math.max(safe, MIN_CAROUSEL_SLIDES)
 }
 
 function extractJsonObject(text: string): string {
@@ -345,33 +345,26 @@ function normalizeExplanationHighlights(
 }
 
 function validateStructuredSlides(slides: StructuredSlide[], maxSlides: number): void {
-  if (maxSlides < 10) {
-    throw new GenerationError("Max slides must be at least 10")
-  }
-
-  if (slides.length !== 10) {
-    throw new GenerationError("Generated output must have exactly 10 slides")
+  if (slides.length < MIN_CAROUSEL_SLIDES || slides.length > maxSlides) {
+    throw new GenerationError(
+      `Generated output must have between ${MIN_CAROUSEL_SLIDES} and ${maxSlides} slides`
+    )
   }
 
   if (slides[0]?.type !== "hero") {
-    throw new GenerationError("Slide 1 must be hero")
+    throw new GenerationError("First slide must be hero")
   }
 
-  if (slides[9]?.type !== "cta") {
-    throw new GenerationError("Slide 10 must be cta")
+  const lastIndex = slides.length - 1
+  if (slides[lastIndex]?.type !== "cta") {
+    throw new GenerationError("Last slide must be cta")
   }
 
-  for (let i = 1; i < 9; i += 1) {
+  for (let i = 1; i < lastIndex; i += 1) {
     const t = slides[i]?.type
     if (t === "hero" || t === "cta") {
-      throw new GenerationError("Only slide 1 can be hero and only slide 10 can be cta")
+      throw new GenerationError("Only the first slide can be hero and only the last slide can be cta")
     }
-  }
-
-  const coreSection = slides.slice(3, 6)
-  const hasFlowInCore = coreSection.some((s) => s.type === "flow")
-  if (!hasFlowInCore) {
-    throw new GenerationError("Slides 4 to 6 must include a flow slide")
   }
 
   for (const slide of slides) {

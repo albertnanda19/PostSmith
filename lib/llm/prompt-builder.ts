@@ -1,10 +1,11 @@
 import type { GenerationOptions } from "@/types/post"
+import { MIN_CAROUSEL_SLIDES } from "@/types/post"
 
 function clampMaxSlides(maxSlides: number): number {
   const safe = Number.isFinite(maxSlides) ? Math.trunc(maxSlides) : 10
-  if (safe <= 0) return 1
+  if (safe <= 0) return MIN_CAROUSEL_SLIDES
   if (safe > 10) return 10
-  return safe
+  return Math.max(safe, MIN_CAROUSEL_SLIDES)
 }
 
 export function buildCarouselPrompt(
@@ -58,26 +59,20 @@ export function buildCarouselPrompt(
     "- Choose variants based on the content so the visuals feel less repetitive.",
     "- If unsure, omit variant (server will default it).",
     "Rules:",
-    `- Maximum slides: ${maxSlides} (never exceed 10).`,
-    "- Generate EXACTLY 10 slides.",
-    "- Never generate fewer than 10 slides.",
-    "- Never generate more than 10 slides.",
-    "- Slide 1 must be type hero.",
-    "- Slide 10 must be type cta.",
-    "- Slides 2 to 9 must NOT be type hero or type cta.",
-    "Narrative pacing structure by slide number:",
-    "- Slide 1: strong hook; clear problem or bold insight; short and punchy.",
-    "- Slides 2 to 3: expand the problem; build tension or curiosity.",
-    "- Slides 4 to 6: core insights; practical explanation; clear value.",
-    "- Slides 4 to 6 MUST include at least one slide with type flow.",
-    "- Slides 7 to 8: deepen perspective; shift angle; add clarity.",
-    "- Slide 9: synthesis; tie ideas together.",
-    "- Slide 10: strong call-to-action; encourage reflection or action.",
-    "- Each slide must logically connect to the previous slide.",
-    "Content variety:",
-    "- Mix slide types across slides 2 to 9 to avoid repetitive bullet-style content.",
-    "- Use paragraph when a single explanation reads better as prose.",
-    "- Use diagram when the concept fits a relationship map or conceptual structure.",
+    `- Maximum ${maxSlides} slides (never exceed). You may generate fewer; choose the slide count that best fits the content (between ${MIN_CAROUSEL_SLIDES} and ${maxSlides}).`,
+    "- First slide must be type hero (strong hook; clear problem or bold insight; short and punchy).",
+    "- Last slide must be type cta (strong call-to-action; encourage reflection or action).",
+    "- All slides between first and last must NOT be type hero or type cta.",
+    "Content-driven slide types (you choose based on the input):",
+    "- Use 'flow' for steps, processes, ordered lists, or how-to sequences (steps array; 3 to 6 items).",
+    "- Use 'diagram' for relationships, systems, conceptual maps, or node-based ideas (nodes array; 3 to 8 items).",
+    "- Use 'explanation' for key points with highlights (title, points array, highlight array).",
+    "- Use 'paragraph' for narrative, single-idea prose, or when one block of text reads better than bullets.",
+    "- Vary types across the carousel so the flow is not monotonous; match each slide type to what the content needs.",
+    "Flow and pacing:",
+    "- Each slide must logically connect to the previous one.",
+    "- Order and type choice should make the carousel clear and easy to read from start to finish.",
+    "- Do not repeat the same slide type in a row unless the content truly requires it.",
     "Tone:",
     "- Conversational.",
     "- Clear.",
